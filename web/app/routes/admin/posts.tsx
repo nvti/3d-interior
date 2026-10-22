@@ -1,10 +1,11 @@
-import { Link, useSearchParams } from "react-router";
+import { Link } from "react-router";
 import { desc, eq } from "drizzle-orm";
 import type { Route } from "./+types/posts";
 import { requireAdmin } from "~/lib/auth.server";
 import { getDb, schema } from "~/lib/db.server";
 import { formatDate } from "~/lib/format";
-import { AdminTop, StatusBadge } from "~/components/admin-ui";
+import { AdminBody, AdminTabs, AdminTop, EmptyState, StatusBadge } from "~/components/admin-ui";
+import { IconPlus } from "~/components/icons";
 
 export async function loader({ request }: Route.LoaderArgs) {
   await requireAdmin(request);
@@ -20,47 +21,62 @@ export async function loader({ request }: Route.LoaderArgs) {
 
 export default function AdminPosts({ loaderData }: Route.ComponentProps) {
   const { type, rows } = loaderData;
-  const [params] = useSearchParams();
-  void params;
+  const newLink = (
+    <Link to={`/admin/posts/new?type=${type}`} className="btn-primary btn-sm">
+      <IconPlus size={15} /> {type === "post" ? "Viết bài" : "Thêm trang"}
+    </Link>
+  );
   return (
     <>
-      <AdminTop title="Bài viết & trang">
-        <Link to={`/admin/posts/new?type=${type}`} className="btn-primary btn-sm">
-          + {type === "post" ? "Viết bài" : "Thêm trang"}
-        </Link>
-      </AdminTop>
-      <div className="flex flex-col gap-4 p-7">
-        <div role="tablist" className="flex gap-6 text-sm">
-          {(
-            [
-              ["post", "Tạp chí"],
-              ["page", "Trang tĩnh"],
-            ] as const
-          ).map(([k, l]) => (
-            <Link key={k} role="tab" aria-selected={type === k} to={`?type=${k}`} className={`h-10 ${type === k ? "border-b-[1.5px] border-ink font-medium" : "text-muted"}`}>
-              {l}
-            </Link>
-          ))}
-        </div>
+      <AdminTop title="Bài viết & trang">{newLink}</AdminTop>
+      <AdminBody>
+        <AdminTabs
+          current={type}
+          tabs={[
+            { key: "post", label: "Tạp chí", to: "?type=post" },
+            { key: "page", label: "Trang tĩnh", to: "?type=page" },
+          ]}
+        />
         {type === "page" && (
           <p className="text-[13px] text-muted">
-            Footer đang trỏ tới các trang có slug: about, payment-guide, license, contact.
+            Footer đang trỏ tới các trang có slug: <span className="font-mono text-[12px]">about, payment-guide, license, contact</span>.
           </p>
         )}
-        <ul className="overflow-hidden rounded-xl border border-line bg-white">
-          {rows.map((r) => (
-            <li key={r.id} className="flex items-center gap-4 border-b border-[#ECEAE5] px-4 py-3 last:border-0">
-              <Link to={`/admin/posts/${r.id}`} className="flex-1 font-medium">
-                {r.title}
-              </Link>
-              <span className="font-mono text-xs text-muted">/{type === "post" ? "blog" : "p"}/{r.slug}</span>
-              <span className="text-xs text-muted">{formatDate(r.updatedAt)}</span>
-              <StatusBadge status={r.status} />
-            </li>
-          ))}
-          {rows.length === 0 && <li className="p-8 text-center text-sm text-muted">Chưa có nội dung.</li>}
-        </ul>
-      </div>
+        <div className="overflow-x-auto rounded-xl border border-line bg-white shadow-[0_1px_2px_rgba(18,18,18,0.04)]">
+          {rows.length === 0 ? (
+            <EmptyState title="Chưa có nội dung" action={newLink} />
+          ) : (
+            <table className="admin-table min-w-[640px]">
+              <thead>
+                <tr>
+                  <th>Tiêu đề</th>
+                  <th>Đường dẫn</th>
+                  <th>Cập nhật</th>
+                  <th>Trạng thái</th>
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((r) => (
+                  <tr key={r.id}>
+                    <td>
+                      <Link to={`/admin/posts/${r.id}`} className="font-medium hover:underline hover:underline-offset-4">
+                        {r.title}
+                      </Link>
+                    </td>
+                    <td className="font-mono text-xs text-muted">
+                      /{type === "post" ? "blog" : "p"}/{r.slug}
+                    </td>
+                    <td className="text-[13px] whitespace-nowrap text-muted">{formatDate(r.updatedAt)}</td>
+                    <td>
+                      <StatusBadge status={r.status} />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+      </AdminBody>
     </>
   );
 }

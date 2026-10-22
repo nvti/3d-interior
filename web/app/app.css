@@ -75,11 +75,38 @@
 @utility field-label {
   @apply flex flex-col gap-1.5 text-[13px] font-medium;
 }
+/* chú thích nhỏ dưới ô nhập – đặt sau input để các ô cạnh nhau thẳng hàng */
+@utility field-hint {
+  @apply text-[12px] font-normal text-muted;
+}
+@utility no-scrollbar {
+  scrollbar-width: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
 @utility card {
   @apply rounded-xl border border-line bg-white p-5;
 }
 
 @layer components {
+  /* Bảng dữ liệu ở trang quản trị */
+  .admin-table {
+    @apply w-full text-sm;
+  }
+  .admin-table thead {
+    @apply border-b border-line bg-paper text-left;
+  }
+  .admin-table th {
+    @apply px-4 py-2.5 font-mono text-[11px] font-normal tracking-wide whitespace-nowrap text-muted uppercase;
+  }
+  .admin-table td {
+    @apply px-4 py-3;
+  }
+  .admin-table tbody tr {
+    @apply border-b border-[#ECEAE5] transition-colors last:border-0 hover:bg-[#FAFAF8];
+  }
+
   /* Nội dung viết bằng editor (HTML đã render an toàn ở server) */
   .prose-content {
     @apply text-[17px] leading-[1.75] text-ink-2;

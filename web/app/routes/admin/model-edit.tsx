@@ -238,7 +238,7 @@ export default function ModelEdit({ loaderData }: Route.ComponentProps) {
         </button>
       </AdminTop>
 
-      <div className="flex flex-wrap items-start gap-6 p-7">
+      <div className="flex flex-wrap items-start gap-6 px-5 py-6 md:px-8 md:py-7">
         <div className="flex min-w-0 flex-[999_1_560px] flex-col gap-5">
           <FlashError error={res && "error" in res ? res.error : null} />
           {res && "ok" in res && <p role="status" className="rounded-lg bg-ok-bg px-4 py-3 text-sm text-ok">{res.ok}</p>}
@@ -250,8 +250,9 @@ export default function ModelEdit({ loaderData }: Route.ComponentProps) {
             </label>
             <div className="flex flex-wrap gap-4">
               <label className="field-label flex-[1_1_260px]">
-                Đường dẫn (slug) <span className="font-normal text-muted">để trống sẽ tự tạo từ tiêu đề</span>
+                Đường dẫn (slug)
                 <input name="slug" defaultValue={m?.slug ?? ""} className="field font-mono text-[13px]" />
+                <span className="field-hint">để trống sẽ tự tạo từ tiêu đề</span>
               </label>
               <label className="field-label flex-[1_1_260px]">
                 Thư mục
@@ -268,12 +269,14 @@ export default function ModelEdit({ loaderData }: Route.ComponentProps) {
               </label>
             </div>
             <label className="field-label">
-              Câu mô tả tinh thần <span className="font-normal text-muted">hiện in nghiêng dưới tiêu đề</span>
+              Câu mô tả tinh thần
               <input name="subtitle" defaultValue={m?.subtitle ?? ""} className="field" />
+              <span className="field-hint">hiện in nghiêng dưới tiêu đề</span>
             </label>
             <label className="field-label">
-              Mô tả ngắn <span className="font-normal text-muted">dùng cho tìm kiếm và thẻ chia sẻ</span>
+              Mô tả ngắn
               <textarea name="description" rows={3} defaultValue={m?.description ?? ""} className="field h-auto py-2.5 leading-relaxed" />
+              <span className="field-hint">dùng cho tìm kiếm và thẻ chia sẻ</span>
             </label>
           </Section>
 
@@ -284,8 +287,9 @@ export default function ModelEdit({ loaderData }: Route.ComponentProps) {
           <Section title="Thông số">
             <div className="grid grid-cols-[repeat(auto-fill,minmax(200px,1fr))] gap-4">
               <label className="field-label">
-                Giá (VND) <span className="font-normal text-muted">0 = miễn phí</span>
+                Giá (VND)
                 <input name="priceVnd" inputMode="numeric" defaultValue={m?.priceVnd ?? 0} className="field font-mono text-sm" />
+                <span className="field-hint">0 = miễn phí</span>
               </label>
               <label className="field-label">
                 Phong cách

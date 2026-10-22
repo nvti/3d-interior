@@ -4,8 +4,9 @@ import type { Route } from "./+types/models";
 import { getDb, schema } from "~/lib/db.server";
 import { requireAdmin } from "~/lib/auth.server";
 import { getCovers } from "~/lib/models.server";
-import { formatPrice } from "~/lib/format";
-import { AdminTop, StatusBadge } from "~/components/admin-ui";
+import { formatDate, formatPrice } from "~/lib/format";
+import { AdminBody, AdminTop, EmptyState, Pagination, StatusBadge } from "~/components/admin-ui";
+import { IconPlus, IconSearch } from "~/components/icons";
 
 const PER = 50;
 
@@ -57,18 +58,20 @@ export default function AdminModels({ loaderData }: Route.ComponentProps) {
     s.set("page", String(p));
     return `?${s}`;
   };
+  const filtered = !!(params.get("q") || params.get("status") || params.get("r2"));
   return (
     <>
-      <AdminTop title={`Mẫu 3D · ${total}`}>
+      <AdminTop title="Mẫu 3D" subtitle={`${total} mẫu${filtered ? " khớp bộ lọc" : " trong thư viện"}`}>
         <Link to="/admin/models/new" className="btn-primary btn-sm">
-          + Thêm mẫu
+          <IconPlus size={15} /> Thêm mẫu
         </Link>
       </AdminTop>
-      <div className="flex flex-col gap-4 p-7">
-        <Form className="flex flex-wrap gap-3">
-          <label className="flex-[1_1_260px]">
+      <AdminBody>
+        <Form className="card flex flex-wrap items-center gap-3 p-3">
+          <label className="relative flex-[1_1_260px]">
             <span className="sr-only">Tìm theo tên hoặc mã</span>
-            <input name="q" defaultValue={params.get("q") ?? ""} placeholder="Tìm theo tên hoặc mã mẫu" className="field" />
+            <IconSearch size={17} className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-faint" />
+            <input name="q" defaultValue={params.get("q") ?? ""} placeholder="Tìm theo tên hoặc mã mẫu" className="field pl-10!" />
           </label>
           <label>
             <span className="sr-only">Trạng thái</span>
@@ -89,64 +92,70 @@ export default function AdminModels({ loaderData }: Route.ComponentProps) {
               <option value="failed">Lỗi upload</option>
             </select>
           </label>
-          <button className="btn-outline btn-sm h-11">Lọc</button>
+          <button className="btn-primary btn-sm h-11">Lọc</button>
+          {filtered && (
+            <Link to="?" className="px-1 text-[13px] text-muted underline underline-offset-4 hover:text-ink">
+              Xoá lọc
+            </Link>
+          )}
         </Form>
 
-        <div className="overflow-x-auto rounded-xl border border-line bg-white">
-          <table className="w-full min-w-[820px] text-sm">
-            <thead className="border-b border-line text-left text-[12px] text-muted">
-              <tr>
-                <th className="px-4 py-3 font-medium">Mẫu</th>
-                <th className="px-4 py-3 font-medium">Thư mục</th>
-                <th className="px-4 py-3 font-medium">Giá</th>
-                <th className="px-4 py-3 font-medium">Trạng thái</th>
-                <th className="px-4 py-3 font-medium">File</th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((r) => (
-                <tr key={r.id} className="border-b border-[#ECEAE5] last:border-0 hover:bg-paper">
-                  <td className="px-4 py-2.5">
-                    <Link to={`/admin/models/${r.id}`} className="flex items-center gap-3">
-                      <span className="block size-11 flex-none overflow-hidden rounded bg-tone-1">
-                        {r.cover && <img src={r.cover} alt="" className="size-full object-cover" />}
-                      </span>
-                      <span className="flex flex-col">
-                        <span className="font-medium">{r.title}</span>
-                        <span className="font-mono text-[11px] text-muted">{r.sku ?? "—"}</span>
-                      </span>
-                    </Link>
-                  </td>
-                  <td className="px-4 py-2.5 text-muted">{r.category}</td>
-                  <td className="px-4 py-2.5 font-mono text-[13px]">{formatPrice(r.priceVnd)}</td>
-                  <td className="px-4 py-2.5">
-                    <StatusBadge status={r.status} />
-                  </td>
-                  <td className="px-4 py-2.5">
-                    <StatusBadge status={r.r2Status} />
-                  </td>
-                </tr>
-              ))}
-              {rows.length === 0 && (
+        <div className="overflow-x-auto rounded-xl border border-line bg-white shadow-[0_1px_2px_rgba(18,18,18,0.04)]">
+          {rows.length === 0 ? (
+            <EmptyState
+              title="Không có mẫu nào"
+              hint={filtered ? "Thử đổi từ khoá hoặc bỏ bớt bộ lọc." : "Mẫu được đăng từ máy nhà (home-agent) hoặc thêm tay."}
+              action={
+                filtered ? (
+                  <Link to="?" className="btn-outline btn-sm">Xoá lọc</Link>
+                ) : (
+                  <Link to="/admin/models/new" className="btn-primary btn-sm">Thêm mẫu</Link>
+                )
+              }
+            />
+          ) : (
+            <table className="admin-table min-w-[820px]">
+              <thead>
                 <tr>
-                  <td colSpan={5} className="px-4 py-10 text-center text-muted">
-                    Không có mẫu nào.
-                  </td>
+                  <th>Mẫu</th>
+                  <th>Thư mục</th>
+                  <th className="text-right">Giá</th>
+                  <th>Trạng thái</th>
+                  <th>File</th>
+                  <th>Cập nhật</th>
                 </tr>
-              )}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {rows.map((r) => (
+                  <tr key={r.id}>
+                    <td className="py-2.5">
+                      <Link to={`/admin/models/${r.id}`} className="group flex items-center gap-3">
+                        <span className="block size-12 flex-none overflow-hidden rounded-lg border border-line bg-tone-1">
+                          {r.cover && <img src={r.cover} alt="" loading="lazy" className="size-full object-cover" />}
+                        </span>
+                        <span className="flex min-w-0 flex-col">
+                          <span className="font-medium group-hover:underline group-hover:underline-offset-4">{r.title}</span>
+                          <span className="font-mono text-[11px] text-muted">{r.sku ?? "—"}</span>
+                        </span>
+                      </Link>
+                    </td>
+                    <td className="text-muted">{r.category}</td>
+                    <td className={`text-right font-mono text-[13px] ${r.priceVnd ? "" : "text-ok"}`}>{formatPrice(r.priceVnd)}</td>
+                    <td>
+                      <StatusBadge status={r.status} />
+                    </td>
+                    <td>
+                      <StatusBadge status={r.r2Status} />
+                    </td>
+                    <td className="text-[13px] whitespace-nowrap text-muted">{formatDate(r.updatedAt)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
         </div>
-        {pages > 1 && (
-          <div className="flex items-center gap-3 text-sm">
-            {page > 1 && <Link to={pageHref(page - 1)} className="btn-outline btn-sm">Trang trước</Link>}
-            <span className="text-muted">
-              Trang {page} / {pages}
-            </span>
-            {page < pages && <Link to={pageHref(page + 1)} className="btn-outline btn-sm">Trang sau</Link>}
-          </div>
-        )}
-      </div>
+        <Pagination page={page} pages={pages} href={pageHref} />
+      </AdminBody>
     </>
   );
 }

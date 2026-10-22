@@ -146,7 +146,7 @@ export default function PostEdit({ loaderData }: Route.ComponentProps) {
           {nav.state === "submitting" ? "Đang lưu…" : "Lưu"}
         </button>
       </AdminTop>
-      <div className="flex flex-wrap items-start gap-6 p-7">
+      <div className="flex flex-wrap items-start gap-6 px-5 py-6 md:px-8 md:py-7">
         <div className="flex min-w-0 flex-[999_1_560px] flex-col gap-5">
           <FlashError error={res && "error" in res ? res.error : null} />
           {res && "ok" in res && <p role="status" className="rounded-lg bg-ok-bg px-4 py-3 text-sm text-ok">{res.ok}</p>}
@@ -213,8 +213,9 @@ export default function PostEdit({ loaderData }: Route.ComponentProps) {
                 </select>
               </label>
               <label className="field-label">
-                Mẫu gắn trong bài <span className="font-normal text-muted">SKU hoặc slug, phân cách bằng dấu phẩy</span>
+                Mẫu gắn trong bài
                 <textarea name="models" rows={2} defaultValue={modelSkus} className="field h-auto py-2.5 font-mono text-xs" />
+                <span className="field-hint">SKU hoặc slug, phân cách bằng dấu phẩy</span>
               </label>
             </Section>
           )}

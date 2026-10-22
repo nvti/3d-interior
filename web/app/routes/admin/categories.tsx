@@ -14,7 +14,7 @@ import {
   updateCategory,
   type CategoryNode,
 } from "~/lib/categories.server";
-import { AdminTop, FlashError } from "~/components/admin-ui";
+import { AdminBody, AdminTabs, AdminTop, FlashError } from "~/components/admin-ui";
 import { IconDown, IconUp } from "~/components/icons";
 
 export async function loader({ request }: Route.LoaderArgs) {
@@ -72,20 +72,15 @@ export default function AdminCategories({ loaderData }: Route.ComponentProps) {
 
   return (
     <>
-      <AdminTop title="Cây thư mục" />
-      <div className="flex flex-col gap-5 p-7">
-        <div role="tablist" className="flex gap-6 text-sm">
-          {(
-            [
-              ["model", "Mẫu 3D"],
-              ["post", "Chuyên mục blog"],
-            ] as const
-          ).map(([k, l]) => (
-            <Link key={k} role="tab" aria-selected={kind === k} to={`?kind=${k}`} className={`h-10 ${kind === k ? "border-b-[1.5px] border-ink font-medium" : "text-muted"}`}>
-              {l}
-            </Link>
-          ))}
-        </div>
+      <AdminTop title="Cây thư mục" subtitle="Sắp thứ tự bằng nút lên/xuống ở mỗi dòng." />
+      <AdminBody>
+        <AdminTabs
+          current={kind}
+          tabs={[
+            { key: "model", label: "Mẫu 3D", to: "?kind=model" },
+            { key: "post", label: "Chuyên mục blog", to: "?kind=post" },
+          ]}
+        />
         <FlashError error={res && "error" in res ? res.error : null} />
 
         <Form method="post" className="card flex flex-wrap items-end gap-3">
@@ -109,7 +104,7 @@ export default function AdminCategories({ loaderData }: Route.ComponentProps) {
           <button className="btn-primary btn-sm h-11">Thêm</button>
         </Form>
 
-        <div className="overflow-hidden rounded-xl border border-line bg-white">
+        <div className="overflow-hidden rounded-xl border border-line bg-white shadow-[0_1px_2px_rgba(18,18,18,0.04)]">
           {tree.length === 0 && <p className="p-8 text-center text-sm text-muted">Chưa có thư mục nào.</p>}
           <ul>
             {tree.map((n) => (
@@ -117,7 +112,7 @@ export default function AdminCategories({ loaderData }: Route.ComponentProps) {
             ))}
           </ul>
         </div>
-      </div>
+      </AdminBody>
     </>
   );
 }
@@ -138,7 +133,7 @@ function TreeRow({
   const isEditing = editing === node.id;
   return (
     <li>
-      <div className="flex flex-wrap items-center gap-3 border-b border-[#ECEAE5] px-4 py-2.5" style={{ paddingLeft: 16 + node.depth * 28 }}>
+      <div className="flex flex-wrap items-center gap-3 border-b border-[#ECEAE5] px-4 py-2.5 hover:bg-[#FAFAF8]" style={{ paddingLeft: 16 + node.depth * 28 }}>
         {isEditing ? (
           <Form method="post" className="flex flex-1 flex-wrap items-center gap-2">
             <input type="hidden" name="intent" value="update" />
@@ -165,10 +160,11 @@ function TreeRow({
         ) : (
           <>
             <span className="flex-1 text-sm">
+              {node.depth > 0 && <span className="mr-1.5 text-faint">└</span>}
               <span className="font-medium">{node.name}</span>{" "}
               <span className="font-mono text-[11px] text-muted">{node.path}</span>
             </span>
-            {kind === "model" && <span className="font-mono text-xs text-muted">{counts[node.path] ?? 0} mẫu</span>}
+            {kind === "model" && <span className="rounded-full bg-ground px-2 py-0.5 font-mono text-[11px] text-muted">{counts[node.path] ?? 0} mẫu</span>}
             <Form method="post" className="flex items-center gap-1">
               <input type="hidden" name="kind" value={kind} />
               <input type="hidden" name="id" value={node.id} />

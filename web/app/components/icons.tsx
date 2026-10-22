@@ -73,3 +73,69 @@ export const IconGoogle = ({ size = 18, className }: P) => (
     <path fill="#EA4335" d="M12 4.77c1.76 0 3.34.61 4.59 1.8l3.44-3.44C17.95 1.19 15.24 0 12 0A12 12 0 0 0 1.27 6.61l4.01 3.11C6.22 6.88 8.87 4.77 12 4.77z" />
   </svg>
 );
+
+// Icon cho thanh điều hướng & bảng ở trang quản trị
+export const IconDashboard = ({ size = 18, className }: P) => (
+  <svg {...base(size)} className={className}>
+    <rect x="4" y="4" width="7" height="7" rx="1.5" />
+    <rect x="13" y="4" width="7" height="4" rx="1.5" />
+    <rect x="13" y="10" width="7" height="10" rx="1.5" />
+    <rect x="4" y="13" width="7" height="7" rx="1.5" />
+  </svg>
+);
+export const IconCube = ({ size = 18, className }: P) => (
+  <svg {...base(size)} className={className}>
+    <path d="M12 3l8 4.5v9L12 21l-8-4.5v-9z" />
+    <path d="M4 7.5l8 4.5 8-4.5M12 12v9" />
+  </svg>
+);
+export const IconFolder = ({ size = 18, className }: P) => (
+  <svg {...base(size)} className={className}>
+    <path d="M3.5 7a2 2 0 0 1 2-2h4l2 2.5h7a2 2 0 0 1 2 2V17a2 2 0 0 1-2 2h-13a2 2 0 0 1-2-2z" />
+  </svg>
+);
+export const IconDoc = ({ size = 18, className }: P) => (
+  <svg {...base(size)} className={className}>
+    <path d="M6 3.5h8l4 4V20a.5.5 0 0 1-.5.5h-11A.5.5 0 0 1 6 20z" />
+    <path d="M14 3.5V8h4M9 12h6M9 16h6" />
+  </svg>
+);
+export const IconReceipt = ({ size = 18, className }: P) => (
+  <svg {...base(size)} className={className}>
+    <path d="M6 3.5h12v17l-3-2-3 2-3-2-3 2z" />
+    <path d="M9 8.5h6M9 12.5h6" />
+  </svg>
+);
+export const IconUsers = ({ size = 18, className }: P) => (
+  <svg {...base(size)} className={className}>
+    <circle cx="9" cy="8.5" r="3.5" />
+    <path d="M3 20c.6-3.4 3-5 6-5s5.4 1.6 6 5M15.5 5.2a3.5 3.5 0 0 1 0 6.6M17.5 15.3c1.9.6 3.1 2.2 3.5 4.7" />
+  </svg>
+);
+export const IconCloud = ({ size = 18, className }: P) => (
+  <svg {...base(size)} className={className}>
+    <path d="M7 18.5a4.5 4.5 0 0 1-.6-9A6 6 0 0 1 18 10a4.3 4.3 0 0 1-.5 8.5z" />
+  </svg>
+);
+export const IconWallet = ({ size = 18, className }: P) => (
+  <svg {...base(size)} className={className}>
+    <path d="M4 7.5A2.5 2.5 0 0 1 6.5 5H18v3" />
+    <path d="M4 7.5V17a2 2 0 0 0 2 2h14V8H6.5A2.5 2.5 0 0 1 4 7.5z" />
+    <circle cx="16" cy="13.5" r="1" />
+  </svg>
+);
+export const IconPlus = ({ size = 16, className }: P) => (
+  <svg {...base(size)} strokeWidth={2} className={className}>
+    <path d="M12 5v14M5 12h14" />
+  </svg>
+);
+export const IconChevronRight = ({ size = 12, className }: P) => (
+  <svg {...base(size)} strokeWidth={2} className={className}>
+    <path d="M9 6l6 6-6 6" />
+  </svg>
+);
+export const IconExternal = ({ size = 16, className }: P) => (
+  <svg {...base(size)} className={className}>
+    <path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5" />
+  </svg>
+);
