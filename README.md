@@ -222,5 +222,7 @@ Nội dung từ editor được render thành HTML ở server theo whitelist: ch
 
 - Kéo thả trực tiếp trên cây thư mục; hiện đang dùng nút lên/xuống và chọn thư mục cha.
 - Watermark ảnh preview khi `scan`.
+- **Ảnh THU VIEN chưa có bản thu nhỏ**: cả 2509 mẫu nhập từ THU VIEN có `media.variants` rỗng, nên thẻ mẫu tải ảnh gốc (trung bình ~200 KB, một trang 48 kết quả ~10 MB). Cần tạo WebP 400/1200px, upload lên R2 và ghi `variants` trong D1, rồi đồng bộ lại tìm kiếm; `cover_url` đổi nên home-agent tự nhúng lại ảnh CLIP.
+- Ảnh hàng đầu của lưới mẫu nên `loading="eager"` + `fetchpriority="high"` (hiện mọi thẻ đều lazy); thêm `loading="lazy"` cho ảnh ở giỏ hàng, thanh toán, mẫu đã mua, danh sách mẫu admin.
 - Giới hạn tần suất (rate limit) cho đăng nhập và `/d/:token`, ví dụ bằng Cloudflare WAF rate limiting rules.
 - Test tự động.

@@ -270,6 +270,8 @@ Chưa có ──(có đơn / admin bấm đẩy)──> Đang đẩy lên ──
 
 - Kéo thả trực tiếp trên cây thư mục (hiện dùng nút lên/xuống và chọn thư mục cha).
 - Watermark ảnh preview.
+- Bản thu nhỏ cho ảnh nhập từ THU VIEN (hiện thẻ mẫu tải ảnh gốc, nặng hơn cần thiết nhiều lần).
+- Tối ưu tải ảnh: hàng đầu tải ngay thay vì lazy; lazy load ở giỏ hàng, thanh toán, mẫu đã mua, admin.
 - Giao diện cấp quyền admin, quên mật khẩu, xác minh email.
 - Mã giảm giá, gói credit, gói thuê bao.
 - Thanh toán quốc tế (PayPal, thẻ).
