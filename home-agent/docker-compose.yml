@@ -22,7 +22,7 @@ services:
   agent:
     build: .
     restart: always
-    env_file: .env
+    env_file: ${AGENT_ENV_FILE:-.env} # ./agent.sh -e <file> đổi file env
     environment:
       LIBRARY_ROOT: /library
       WORK_DIR: /work

@@ -154,15 +154,28 @@ Gán quyền admin trên production: lệnh `UPDATE user ...` ở trên, đổi 
 
 ```bash
 cd home-agent
-pnpm install
 cp .env.example .env        # điền thông tin
-docker compose up -d        # Typesense + cloudflared
+./agent.sh check            # kiểm tra .env + website, R2, Queue, thư viện
+./agent.sh start            # chạy Typesense + cloudflared + worker upload, rồi test tunnel
 ```
+
+`agent.sh` gom mọi thao tác (chạy qua docker compose, không in giá trị bí mật):
+
+| Lệnh | Việc |
+|---|---|
+| `check` | kiểm tra biến bắt buộc, AGENT_TOKEN với website, R2 đọc/ghi 2 bucket, quyền Queue, thư mục thư viện |
+| `start` / `stop` / `restart [dịch vụ]` | chạy / dừng / khởi động lại (`typesense`, `cloudflared`, `agent`) |
+| `status`, `test` | trạng thái container, Typesense local, tunnel đã kết nối, gọi thử `TUNNEL_HOSTNAME` qua Access |
+| `logs [dịch vụ]` | xem log |
+| `scan [--publish …]`, `typesense-setup` | quét thư viện / đồng bộ Typesense (chạy trong container) |
+| `update` | kéo image mới, build lại agent |
+
+Dùng file env khác: `./agent.sh -e .env.production start`. Trên macOS, nếu thư viện nằm ở ổ ngoài (`/Volumes/...`), cho phép Docker Desktop truy cập ổ đó (Settings → Resources → File sharing).
 
 1. **Tunnel**: vào Cloudflare Zero Trust → Networks → Tunnels → tạo tunnel, lấy token điền vào `TUNNEL_TOKEN`. Thêm *Public hostname*, ví dụ `search.tenmien.com` → `http://typesense:8108`.
 2. **Access** (bảo vệ Tunnel): Zero Trust → Access → Applications → thêm *Self-hosted* cho `search.tenmien.com`, policy *Service Auth*. Tạo *Service token* rồi đặt vào 2 secret `CF_ACCESS_CLIENT_*` của Worker. Sau bước này chỉ Worker gọi được Typesense.
 3. Đặt `TYPESENSE_URL=https://search.tenmien.com` trong `wrangler.jsonc` rồi deploy lại.
-4. Tạo collection và đồng bộ toàn bộ mẫu: `pnpm typesense:setup`. Chạy lại lệnh này sau mỗi lần cập nhật website có thêm trường tìm kiếm: script tự thêm trường còn thiếu và đồng bộ lại, không cần `--recreate`.
+4. Tạo collection và đồng bộ toàn bộ mẫu: `./agent.sh typesense-setup` (hoặc `pnpm typesense:setup`). Chạy lại lệnh này sau mỗi lần cập nhật website có thêm trường tìm kiếm: script tự thêm trường còn thiếu và đồng bộ lại, không cần `--recreate`.
 
 **Quy ước thư mục thư viện**
 

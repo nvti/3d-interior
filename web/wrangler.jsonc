@@ -22,7 +22,7 @@
 		"R2_EVICT_DAYS": "30",
 		"DOWNLOAD_LINK_TTL_HOURS": "72",
 		"PRESIGN_TTL_SECONDS": "900",
-		"TYPESENSE_URL": "https://search.example.com",
+		"TYPESENSE_URL": "https://ke-homelab.tihado.com",
 		"TYPESENSE_COLLECTION": "models",
 		"BANK_BIN": "970436",
 		"BANK_ACCOUNT_NO": "REPLACE_ME",
