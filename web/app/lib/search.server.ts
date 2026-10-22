@@ -3,7 +3,7 @@
 import { sql, type SQL } from "drizzle-orm";
 import { getDb } from "./db.server";
 import { getModelCards, type ModelCard } from "./models.server";
-import { tsQuote, tsSearch, typesenseEnabled } from "./typesense.server";
+import { tsQuote, tsSearch, tsSearchPost, typesenseEnabled } from "./typesense.server";
 import { stripDiacritics } from "./format";
 
 export const PAGE_SIZE = 24;
@@ -54,7 +54,7 @@ export async function searchModels(q: SearchQuery): Promise<SearchResult> {
   return searchD1(q);
 }
 
-async function searchTypesense(q: SearchQuery): Promise<SearchResult> {
+function tsFilters(q: SearchQuery): string[] {
   const filters: string[] = [];
   if (q.cat) filters.push(`category_ancestors:=${tsQuote(q.cat)}`);
   if (q.styles.length) filters.push(`style:=[${q.styles.map(tsQuote).join(",")}]`);
@@ -62,6 +62,11 @@ async function searchTypesense(q: SearchQuery): Promise<SearchResult> {
   if (q.formats.length) filters.push(`formats:=[${q.formats.map(tsQuote).join(",")}]`);
   if (q.price === "free") filters.push("is_free:=true");
   if (q.price === "paid") filters.push("is_free:=false");
+  return filters;
+}
+
+async function searchTypesense(q: SearchQuery): Promise<SearchResult> {
+  const filters = tsFilters(q);
 
   const sortBy =
     q.sort === "newest"
@@ -94,6 +99,41 @@ async function searchTypesense(q: SearchQuery): Promise<SearchResult> {
   const res = await tsSearch(params);
   const items = await getModelCards(res.ids);
   return { items, found: res.found, page: q.page, pages: Math.ceil(res.found / PAGE_SIZE), source: "typesense" };
+}
+
+export const IMAGE_SEARCH_LIMIT = 48;
+/** Ảnh truy vấn: JPEG base64 do trình duyệt thu nhỏ sẵn (~30 KB) */
+const MAX_IMAGE_B64 = 600_000;
+
+export class ImageSearchError extends Error {}
+
+/**
+ * Tìm bằng ảnh: Typesense sinh embedding CLIP cho ảnh truy vấn, so với image_embedding của các mẫu.
+ * Không có bản dự phòng D1 – máy nhà không phản hồi thì báo lỗi. Bộ lọc vẫn áp dụng, không phân trang.
+ */
+export async function searchByImage(q: SearchQuery, imageB64: string): Promise<SearchResult> {
+  if (!imageB64 || imageB64.length > MAX_IMAGE_B64 || !/^[A-Za-z0-9+/]+={0,2}$/.test(imageB64)) {
+    throw new ImageSearchError("Ảnh không hợp lệ hoặc quá lớn.");
+  }
+  if (!typesenseEnabled()) throw new ImageSearchError("Tìm bằng ảnh tạm thời không khả dụng.");
+  const filters = tsFilters(q);
+  const params: Record<string, string> = {
+    q: "*",
+    vector_query: `image_embedding:([], image:${imageB64}, k: ${IMAGE_SEARCH_LIMIT})`,
+    per_page: String(IMAGE_SEARCH_LIMIT),
+    include_fields: "id",
+    exclude_fields: "embedding,image_embedding",
+  };
+  if (filters.length) params.filter_by = filters.join(" && ");
+  let res;
+  try {
+    res = await tsSearchPost(params);
+  } catch (err) {
+    console.warn("Tìm bằng ảnh lỗi:", (err as Error).message);
+    throw new ImageSearchError("Máy chủ tìm kiếm không phản hồi, thử lại sau.");
+  }
+  const items = await getModelCards(res.ids);
+  return { items, found: items.length, page: 1, pages: 1, source: "typesense" };
 }
 
 function ftsTokens(input: string): string[] {

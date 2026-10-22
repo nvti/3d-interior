@@ -23,6 +23,8 @@ export type SearchDoc = {
   price_vnd: number;
   is_free: boolean;
   published_at: number;
+  /** Ảnh đại diện 400px – home-agent tải về để sinh image_embedding (CLIP) */
+  cover_url: string;
 };
 
 function headers(): HeadersInit {
@@ -44,7 +46,8 @@ export function typesenseEnabled() {
 }
 
 export async function tsUpsert(doc: SearchDoc) {
-  const res = await fetch(`${base()}/documents?action=upsert`, {
+  // emplace (không phải upsert): giữ image_embedding / image_key do home-agent ghi
+  const res = await fetch(`${base()}/documents?action=emplace`, {
     method: "POST",
     headers: headers(),
     body: JSON.stringify(doc),
@@ -73,6 +76,23 @@ export async function tsSearch(params: Record<string, string>, timeoutMs = 2500)
   if (!res.ok) throw new Error(`Typesense search ${res.status}`);
   const data = (await res.json()) as { found: number; hits: { document: { id: string } }[] };
   return { ids: data.hits.map((h) => h.document.id), found: data.found };
+}
+
+/** Tìm qua multi_search (POST) – cho tham số dài như ảnh base64 trong vector_query */
+export async function tsSearchPost(params: Record<string, string>, timeoutMs = 8000): Promise<TsSearchResult> {
+  const res = await fetch(`${env.TYPESENSE_URL}/multi_search`, {
+    method: "POST",
+    headers: headers(),
+    body: JSON.stringify({ searches: [{ collection: env.TYPESENSE_COLLECTION, ...params }] }),
+    signal: AbortSignal.timeout(timeoutMs),
+  });
+  if (!res.ok) throw new Error(`Typesense search ${res.status}`);
+  const data = (await res.json()) as {
+    results: { found?: number; hits?: { document: { id: string } }[]; error?: string; code?: number }[];
+  };
+  const r = data.results[0];
+  if (!r || r.error) throw new Error(`Typesense search ${r?.code ?? ""}: ${r?.error ?? "không có kết quả"}`);
+  return { ids: (r.hits ?? []).map((h) => h.document.id), found: r.found ?? 0 };
 }
 
 /** Giá trị trong filter_by của Typesense phải bọc backtick */

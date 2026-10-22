@@ -10,6 +10,7 @@
 #   ./agent.sh test             test Typesense local + tunnel
 #   ./agent.sh scan [--publish …]  quét thư viện, đăng mẫu lên website
 #   ./agent.sh typesense-setup  tạo collection + đồng bộ toàn bộ mẫu
+#   ./agent.sh typesense-images nhúng ảnh preview (CLIP) cho tìm bằng ảnh
 #   ./agent.sh update           build lại image agent, kéo bản mới typesense/cloudflared
 #
 # Dùng file env khác:  ./agent.sh -e .env.production start
@@ -197,10 +198,12 @@ case "$cmd" in
     load_env; compose run --rm agent node dist/scan.js "$@" ;;
   typesense-setup)
     load_env; compose run --rm -e TYPESENSE_LOCAL_URL=http://typesense:8108 agent node dist/typesense-setup.js "$@" ;;
+  typesense-images)
+    load_env; compose run --rm -e TYPESENSE_LOCAL_URL=http://typesense:8108 agent node dist/image-sync.js "$@" ;;
   update)
     compose pull typesense cloudflared && compose build --pull agent && compose up -d ;;
   help | -h | --help)
-    sed -n '2,16p' "$0" | sed 's/^# \{0,1\}//' ;;
+    sed -n '2,17p' "$0" | sed 's/^# \{0,1\}//' ;;
   *)
-    echo "Lệnh không hợp lệ: $cmd"; sed -n '2,16p' "$0" | sed 's/^# \{0,1\}//'; exit 1 ;;
+    echo "Lệnh không hợp lệ: $cmd"; sed -n '2,17p' "$0" | sed 's/^# \{0,1\}//'; exit 1 ;;
 esac

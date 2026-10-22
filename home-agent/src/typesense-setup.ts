@@ -14,6 +14,7 @@ type Field = {
   facet?: boolean;
   optional?: boolean;
   index?: boolean;
+  store?: boolean;
   embed?: { from: string[]; model_config: { model_name: string } };
 };
 
@@ -48,6 +49,18 @@ const fields: Field[] = [
       model_config: { model_name: ts.embedModel },
     },
   },
+  // URL ảnh đại diện (website ghi) và URL ảnh đã nhúng (home-agent ghi, xem images.ts) – lệch nhau thì nhúng lại
+  { name: "cover_url", type: "string", index: false, optional: true },
+  { name: "image_key", type: "string", index: false, optional: true },
+  // ảnh JPEG base64 do home-agent gửi, chỉ dùng để sinh image_embedding rồi bỏ đi
+  { name: "image", type: "image", store: false, optional: true },
+  {
+    // embedding ảnh CLIP – tìm bằng ảnh
+    name: "image_embedding",
+    type: "float[]",
+    optional: true,
+    embed: { from: ["image"], model_config: { model_name: ts.imageModel } },
+  },
 ];
 
 const schema = {
@@ -65,7 +78,7 @@ async function main(): Promise<void> {
     await fetch(`${ts.url}/collections/${ts.collection}`, { method: "DELETE", headers: H });
   }
   if (!exists.ok || recreate) {
-    log(`Tạo collection "${ts.collection}" (lần đầu sẽ tải model ${ts.embedModel}, có thể mất vài phút)…`);
+    log(`Tạo collection "${ts.collection}" (lần đầu sẽ tải model ${ts.embedModel} và ${ts.imageModel}, có thể mất vài phút)…`);
     const r = await fetch(`${ts.url}/collections`, { method: "POST", headers: H, body: JSON.stringify(schema) });
     if (!r.ok) throw new Error(`Tạo collection lỗi ${r.status}: ${await r.text()}`);
   } else {
@@ -87,6 +100,7 @@ async function main(): Promise<void> {
   }
   const q = await api<{ queued: number }>("/api/agent/reindex", {});
   log(`Đã đưa ${q.queued} mẫu vào hàng đợi đồng bộ. Website sẽ đẩy dần sang Typesense.`);
+  log(`Ảnh preview sẽ được nhúng khi chạy "pnpm typesense:images" (worker cũng tự chạy định kỳ).`);
 }
 
 main().catch((e: unknown) => {

@@ -190,11 +190,14 @@ export async function buildSearchDoc(modelId: string): Promise<SearchDoc | null>
     .where(eq(models.id, modelId))
     .limit(1);
   if (!row || row.m.status !== "published") return null;
-  const tagRows = await db
-    .select({ name: tags.name })
-    .from(modelTags)
-    .innerJoin(tags, eq(tags.id, modelTags.tagId))
-    .where(eq(modelTags.modelId, modelId));
+  const [tagRows, covers] = await Promise.all([
+    db
+      .select({ name: tags.name })
+      .from(modelTags)
+      .innerJoin(tags, eq(tags.id, modelTags.tagId))
+      .where(eq(modelTags.modelId, modelId)),
+    getCovers([modelId]),
+  ]);
   const parts = row.c.path.split("/").filter(Boolean);
   const contentText = (row.m.contentText ?? "").slice(0, 4000);
   const tagNames = tagRows.map((t) => t.name);
@@ -223,6 +226,7 @@ export async function buildSearchDoc(modelId: string): Promise<SearchDoc | null>
     price_vnd: row.m.priceVnd,
     is_free: row.m.priceVnd === 0,
     published_at: Math.floor((row.m.publishedAt?.getTime() ?? 0) / 1000),
+    cover_url: covers.get(modelId) ?? "",
   };
 }
 

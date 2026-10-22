@@ -22,6 +22,7 @@ Tài liệu này mô tả những gì hệ thống **đang làm được**, chia
   - Có Typesense: tìm **hybrid**, kết hợp khớp từ khoá với tìm theo nghĩa (model đa ngôn ngữ), nên mô tả bằng tiếng Việt hay tiếng Anh đều ra kết quả gần nghĩa.
   - Gõ **không dấu** vẫn tìm được, kể cả chữ “đ” (`den may tre` → “Đèn thả mây tre”). Gõ dở từ cũng được (`giuong indo` → “Giường gỗ Indochine”).
   - Máy nhà không phản hồi trong 2,5 giây thì tự chuyển sang **tìm kiếm dự phòng** bằng D1. Chế độ này vẫn tìm không dấu và theo tiền tố, nhưng chỉ khớp từ khoá. Khách không thấy khác biệt nào về giao diện.
+- **Tìm bằng ảnh** (nút camera cạnh ô tìm kiếm): chọn một ảnh, website trả về tối đa 48 mẫu có ảnh đại diện giống nhất (CLIP). Bộ lọc vẫn dùng được, đổi bộ lọc thì tìm lại với ảnh đó; *Bỏ ảnh* để quay về danh sách thường. Cần máy nhà đang chạy – nếu không, trang báo lỗi, không có dự phòng.
 - **Chỉ mục danh mục gốc**: hàng danh mục đánh số `01, 02…`, kèm số mẫu của cả nhánh.
 - **Danh mục con** hiện dạng tab dưới tiêu đề. Chọn danh mục cha thì thấy mẫu của cả nhánh.
 - **Breadcrumb** theo đường dẫn danh mục, ví dụ `Thư viện / Nội thất / Phòng khách / Sofa`.
@@ -187,7 +188,11 @@ Chạy trong thư mục `home-agent/` (Node.js ≥ 20.6, viết bằng TypeScrip
 
 Tạo collection tìm kiếm trên Typesense, với embedding sinh từ tiêu đề, mô tả, tag, chất liệu, phong cách và nội dung bằng model `ts/multilingual-e5-small`. Sau đó đưa toàn bộ mẫu vào hàng đợi đồng bộ. Thêm `--recreate` để xoá và tạo lại.
 
-### 3.4 Docker
+### 3.4 `pnpm typesense:images`
+
+Nhúng ảnh đại diện của các mẫu vào Typesense (model CLIP `ts/clip-vit-b-p32`) cho tìm bằng ảnh. Chỉ xử lý mẫu mới hoặc vừa đổi ảnh đại diện (so `cover_url` với `image_key`); `--force` để nhúng lại tất cả. Worker cũng tự chạy việc này 10 phút một lần.
+
+### 3.5 Docker
 
 `docker-compose.yml` chạy Typesense, Cloudflare Tunnel và (tuỳ chọn) worker; cả ba đều tự khởi động lại. Xem README mục 4.
 
@@ -263,7 +268,6 @@ Chưa có ──(có đơn / admin bấm đẩy)──> Đang đẩy lên ──
 
 ## 7. Chưa có
 
-- **Tìm bằng ảnh**: nút đã có trên giao diện nhưng đang khoá.
 - Kéo thả trực tiếp trên cây thư mục (hiện dùng nút lên/xuống và chọn thư mục cha).
 - Watermark ảnh preview.
 - Giao diện cấp quyền admin, quên mật khẩu, xác minh email.

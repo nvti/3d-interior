@@ -8,6 +8,7 @@
     "scan": "tsc && node --env-file=.env dist/scan.js",
     "worker": "tsc && node --env-file=.env dist/worker.js",
     "typesense:setup": "tsc && node --env-file=.env dist/typesense-setup.js",
+    "typesense:images": "tsc && node --env-file=.env dist/image-sync.js",
     "sample": "tsc && node dist/sample-library.js"
   },
   "dependencies": {

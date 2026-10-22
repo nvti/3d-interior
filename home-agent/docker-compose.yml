@@ -26,6 +26,7 @@ services:
     environment:
       LIBRARY_ROOT: /library
       WORK_DIR: /work
+      TYPESENSE_LOCAL_URL: http://typesense:8108 # trong mạng docker, không phải localhost
     volumes:
       - ${LIBRARY_ROOT}:/library:ro
       - ./.agent:/work

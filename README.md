@@ -1,6 +1,6 @@
 # Thư viện mẫu 3D
 
-Website bán mẫu nội thất 3D theo từng mẫu: tìm kiếm (từ khoá + ngữ nghĩa, gõ không dấu), thanh toán VietQR, tải file qua link riêng, trang quản trị, blog.
+Website bán mẫu nội thất 3D theo từng mẫu: tìm kiếm (từ khoá + ngữ nghĩa, gõ không dấu, tìm bằng ảnh), thanh toán VietQR, tải file qua link riêng, trang quản trị, blog.
 
 📖 Mô tả chi tiết từng chức năng: [docs/chuc-nang.md](docs/chuc-nang.md)
 
@@ -33,6 +33,8 @@ Máy nhà: kho 2TB + home-agent  (scan: đăng mẫu · worker: nén & upload kh
 4. Cron mỗi đêm xoá khỏi R2 những mẫu quá `R2_EVICT_DAYS` ngày không có lượt tải. Mẫu nào còn link chưa hết hạn thì được giữ lại.
 
 **Tìm kiếm**: dùng Typesense ở chế độ hybrid (từ khoá + ngữ nghĩa, model `ts/multilingual-e5-small`). Khi máy nhà không phản hồi trong 2,5 giây, website tự chuyển sang D1 FTS5: vẫn tìm không dấu được, nhưng chỉ theo từ khoá.
+
+**Tìm bằng ảnh**: ảnh đại diện của mỗi mẫu được nhúng bằng CLIP (`ts/clip-vit-b-p32`) vào trường `image_embedding`. Website ghi `cover_url` vào tài liệu Typesense; home-agent tải ảnh đó, đổi sang JPEG rồi cập nhật trường `image` (worker tự chạy 10 phút/lần, hoặc `pnpm typesense:images`). Khách chọn ảnh → trình duyệt thu nhỏ còn 336px JPEG → action trang chủ gửi `vector_query: image_embedding:([], image:<base64>)` qua `multi_search`. Bộ lọc vẫn áp dụng, không có dự phòng D1.
 
 ---
 
@@ -167,7 +169,7 @@ cp .env.example .env        # điền thông tin
 | `start` / `stop` / `restart [dịch vụ]` | chạy / dừng / khởi động lại (`typesense`, `cloudflared`, `agent`) |
 | `status`, `test` | trạng thái container, Typesense local, tunnel đã kết nối, gọi thử `TUNNEL_HOSTNAME` qua Access |
 | `logs [dịch vụ]` | xem log |
-| `scan [--publish …]`, `typesense-setup` | quét thư viện / đồng bộ Typesense (chạy trong container) |
+| `scan [--publish …]`, `typesense-setup`, `typesense-images [--force]` | quét thư viện / đồng bộ Typesense / nhúng ảnh cho tìm bằng ảnh (chạy trong container) |
 | `update` | kéo image mới, build lại agent |
 
 Dùng file env khác: `./agent.sh -e .env.production start`. Trên macOS, nếu thư viện nằm ở ổ ngoài (`/Volumes/...`), cho phép Docker Desktop truy cập ổ đó (Settings → Resources → File sharing).
@@ -175,7 +177,7 @@ Dùng file env khác: `./agent.sh -e .env.production start`. Trên macOS, nếu 
 1. **Tunnel**: vào Cloudflare Zero Trust → Networks → Tunnels → tạo tunnel, lấy token điền vào `TUNNEL_TOKEN`. Thêm *Public hostname*, ví dụ `search.tenmien.com` → `http://typesense:8108`.
 2. **Access** (bảo vệ Tunnel): Zero Trust → Access → Applications → thêm *Self-hosted* cho `search.tenmien.com`, policy *Service Auth*. Tạo *Service token* rồi đặt vào 2 secret `CF_ACCESS_CLIENT_*` của Worker. Sau bước này chỉ Worker gọi được Typesense.
 3. Đặt `TYPESENSE_URL=https://search.tenmien.com` trong `wrangler.jsonc` rồi deploy lại.
-4. Tạo collection và đồng bộ toàn bộ mẫu: `./agent.sh typesense-setup` (hoặc `pnpm typesense:setup`). Chạy lại lệnh này sau mỗi lần cập nhật website có thêm trường tìm kiếm: script tự thêm trường còn thiếu và đồng bộ lại, không cần `--recreate`.
+4. Tạo collection và đồng bộ toàn bộ mẫu: `./agent.sh typesense-setup` (hoặc `pnpm typesense:setup`). Chạy lại lệnh này sau mỗi lần cập nhật website có thêm trường tìm kiếm: script tự thêm trường còn thiếu và đồng bộ lại, không cần `--recreate`. Lần đầu bật tìm bằng ảnh, sau khi đồng bộ xong chạy `./agent.sh typesense-images` để nhúng ảnh toàn bộ mẫu (khoảng 0,5 giây/mẫu).
 
 **Quy ước thư mục thư viện**
 
@@ -218,7 +220,6 @@ Nội dung từ editor được render thành HTML ở server theo whitelist: ch
 
 ## 6. Chưa làm / bước tiếp theo
 
-- **Tìm bằng ảnh**: nút đã có nhưng tạm khoá. Cần thêm trường embedding ảnh (CLIP) trong Typesense và endpoint upload ảnh truy vấn.
 - Kéo thả trực tiếp trên cây thư mục; hiện đang dùng nút lên/xuống và chọn thư mục cha.
 - Watermark ảnh preview khi `scan`.
 - Giới hạn tần suất (rate limit) cho đăng nhập và `/d/:token`, ví dụ bằng Cloudflare WAF rate limiting rules.

@@ -1,11 +1,13 @@
-import { Form, Link, useNavigation, useSearchParams, useSubmit } from "react-router";
+import { useEffect, useRef, useState } from "react";
+import { Form, Link, useFetcher, useNavigation, useSearchParams, useSubmit } from "react-router";
 import { and, desc, eq } from "drizzle-orm";
 import type { Route } from "./+types/home";
 import { categoryCounts, getCategoryTree, type CategoryNode } from "~/lib/categories.server";
-import { parseSearchQuery, searchModels } from "~/lib/search.server";
+import { ImageSearchError, parseSearchQuery, searchByImage, searchModels } from "~/lib/search.server";
 import { getDb, schema } from "~/lib/db.server";
 import { mediaVariantUrl } from "~/lib/r2.server";
 import { FORMATS, RENDER_ENGINES, STYLES } from "~/lib/format";
+import { imageToSearchJpeg } from "~/lib/image-upload.client";
 import { ModelGrid } from "~/components/site";
 import { IconArrow, IconCamera, IconChevron, IconX } from "~/components/icons";
 
@@ -78,6 +80,18 @@ export async function loader({ request }: Route.LoaderArgs) {
   };
 }
 
+/** Tìm bằng ảnh: ảnh JPEG base64 (trình duyệt đã thu nhỏ), bộ lọc lấy từ URL */
+export async function action({ request }: Route.ActionArgs) {
+  const form = await request.formData();
+  const image = String(form.get("image") ?? "");
+  try {
+    return { result: await searchByImage(parseSearchQuery(new URL(request.url)), image) };
+  } catch (err) {
+    if (err instanceof ImageSearchError) return { error: err.message };
+    throw err;
+  }
+}
+
 function useParamHref() {
   const [params] = useSearchParams();
   return (changes: Record<string, string | string[] | null>) => {
@@ -94,13 +108,44 @@ function useParamHref() {
 }
 
 export default function Home({ loaderData }: Route.ComponentProps) {
-  const { query, result, roots, activeCat, trail, subTabs, isLanding, feature } = loaderData;
+  const { query, roots, activeCat, trail, subTabs, isLanding, feature } = loaderData;
   const href = useParamHref();
   const submit = useSubmit();
   const nav = useNavigation();
   const loading = nav.state === "loading" && nav.location?.pathname === "/";
   const activeRoot = trail[0]?.path;
   const hasFilters = query.styles.length + query.engines.length + query.formats.length > 0 || query.price !== "all";
+
+  // Tìm bằng ảnh: giữ ảnh truy vấn trong state, tìm lại mỗi khi bộ lọc trên URL đổi
+  const [params] = useSearchParams();
+  const search = params.toString();
+  const fetcher = useFetcher<typeof action>();
+  const [imageQuery, setImageQuery] = useState<{ base64: string; dataUrl: string } | null>(null);
+  const [imageError, setImageError] = useState<string | null>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
+  const resultsRef = useRef<HTMLElement>(null);
+  const submitImage = fetcher.submit;
+  useEffect(() => {
+    if (!imageQuery) return;
+    submitImage({ image: imageQuery.base64 }, { method: "post", action: `/?index${search ? "&" + search : ""}` });
+  }, [imageQuery, search, submitImage]);
+
+  async function pickImage(file: File | undefined) {
+    if (!file) return;
+    setImageError(null);
+    try {
+      setImageQuery(await imageToSearchJpeg(file));
+      resultsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    } catch (e) {
+      setImageError((e as Error).message);
+    }
+  }
+
+  const imageData = imageQuery ? fetcher.data : undefined;
+  const imageMode = !!imageQuery;
+  const shownError = imageError ?? imageData?.error ?? null;
+  const result = imageData?.result ?? (imageMode ? { ...loaderData.result, items: [], found: 0, pages: 1 } : loaderData.result);
+  const imageLoading = imageMode && fetcher.state !== "idle";
 
   const half = Math.min(8, result.items.length);
   return (
@@ -119,7 +164,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
             </h1>
           </>
         )}
-        <Form method="get" action="/" className="flex max-w-[1100px] flex-col gap-4">
+        <Form method="get" action="/" onSubmit={() => setImageQuery(null)} className="flex max-w-[1100px] flex-col gap-4">
           {query.cat && <input type="hidden" name="cat" value={query.cat} />}
           <div className="flex items-center gap-3 border-b-[1.5px] border-ink pb-3.5 md:gap-4">
             <label className="flex min-w-0 flex-1">
@@ -133,13 +178,23 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                 className="min-w-0 flex-1 bg-transparent font-display text-xl tracking-tight outline-none md:text-2xl"
               />
             </label>
+            <input
+              ref={fileRef}
+              type="file"
+              accept="image/*"
+              hidden
+              onChange={(e) => {
+                void pickImage(e.currentTarget.files?.[0]);
+                e.currentTarget.value = ""; // chọn lại cùng ảnh vẫn tìm
+              }}
+            />
             <button
               type="button"
-              disabled
-              title="Sắp ra mắt"
-              className="hidden h-12 items-center gap-2 rounded-full border border-ink px-4 text-sm opacity-60 md:flex"
+              onClick={() => fileRef.current?.click()}
+              aria-label="Tìm bằng ảnh"
+              className="flex size-12 flex-none items-center justify-center gap-2 rounded-full border border-ink text-sm hover:bg-paper md:w-auto md:px-4"
             >
-              <IconCamera /> Tìm bằng ảnh
+              <IconCamera /> <span className="hidden md:inline">Tìm bằng ảnh</span>
             </button>
             <button type="submit" aria-label="Tìm" className="flex size-12 flex-none items-center justify-center rounded-full bg-ink text-white">
               <IconArrow />
@@ -183,7 +238,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
         </nav>
       )}
 
-      <main className="mx-auto flex max-w-[1440px] flex-col gap-7 px-5 pt-16 pb-10 md:px-12 md:pt-[72px]">
+      <main ref={resultsRef} className="mx-auto flex max-w-[1440px] scroll-mt-4 flex-col gap-7 px-5 pt-16 pb-10 md:px-12 md:pt-[72px]">
         <div className="flex flex-wrap items-end justify-between gap-5">
           <div className="flex flex-col gap-3">
             <span className="font-mono text-xs text-muted">
@@ -195,10 +250,29 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                 </span>
               ))}
             </span>
-            <h2 className="font-display text-[clamp(36px,5vw,56px)] font-medium leading-none tracking-[-0.03em]">
-              {query.q ? `“${query.q}”` : (activeCat?.name ?? "Tất cả mẫu")}{" "}
-              <sup className="align-super font-mono text-sm font-normal tracking-normal text-muted">{result.found}</sup>
-            </h2>
+            {imageQuery ? (
+              <div className="flex items-center gap-4">
+                <img src={imageQuery.dataUrl} alt="Ảnh đang tìm" className="size-16 flex-none rounded-lg object-cover md:size-20" />
+                <h2 className="font-display text-[clamp(32px,4.4vw,48px)] font-medium leading-none tracking-[-0.03em]">
+                  Mẫu giống ảnh{" "}
+                  <sup className="align-super font-mono text-sm font-normal tracking-normal text-muted">
+                    {imageLoading ? "…" : result.found}
+                  </sup>
+                </h2>
+                <button
+                  type="button"
+                  onClick={() => setImageQuery(null)}
+                  className="flex h-10 items-center gap-1.5 px-1.5 text-[13px] text-muted underline underline-offset-4"
+                >
+                  <IconX size={12} /> Bỏ ảnh
+                </button>
+              </div>
+            ) : (
+              <h2 className="font-display text-[clamp(36px,5vw,56px)] font-medium leading-none tracking-[-0.03em]">
+                {query.q ? `“${query.q}”` : (activeCat?.name ?? "Tất cả mẫu")}{" "}
+                <sup className="align-super font-mono text-sm font-normal tracking-normal text-muted">{result.found}</sup>
+              </h2>
+            )}
           </div>
           {subTabs && subTabs.list.length > 0 && (
             <div role="tablist" aria-label="Danh mục con" className="flex flex-wrap gap-6 text-sm">
@@ -277,9 +351,19 @@ export default function Home({ loaderData }: Route.ComponentProps) {
           </label>
         </Form>
 
-        <div className={`pt-3 transition-opacity ${loading ? "opacity-50" : ""}`}>
-          {result.items.length ? (
+        <div className={`pt-3 transition-opacity ${loading || imageLoading ? "opacity-50" : ""}`}>
+          {shownError ? (
+            <div role="alert" className="flex flex-col items-start gap-4 py-16">
+              <p className="font-serif text-3xl italic">Không tìm được bằng ảnh.</p>
+              <p className="text-sm text-muted">{shownError}</p>
+            </div>
+          ) : result.items.length ? (
             <ModelGrid items={result.items.slice(0, half)} />
+          ) : imageMode ? (
+            <div className="flex flex-col items-start gap-4 py-16">
+              <p className="font-serif text-3xl italic">{imageLoading ? "Đang tìm mẫu giống ảnh…" : "Chưa thấy mẫu giống ảnh này."}</p>
+              {!imageLoading && <p className="text-sm text-muted">Thử ảnh khác rõ vật thể hơn, hoặc bỏ bớt bộ lọc.</p>}
+            </div>
           ) : (
             <div className="flex flex-col items-start gap-4 py-16">
               <p className="font-serif text-3xl italic">Chưa tìm thấy mẫu phù hợp.</p>
@@ -292,7 +376,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
         </div>
       </main>
 
-      {feature && (
+      {feature && !imageMode && (
         <section aria-label="Tạp chí" className="my-12 bg-ink text-ground">
           <div className="mx-auto flex max-w-[1440px] flex-wrap items-end gap-12 px-5 py-[72px] md:px-12">
             <div className="flex flex-[1_1_340px] flex-col gap-5">

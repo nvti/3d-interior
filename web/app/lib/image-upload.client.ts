@@ -35,3 +35,22 @@ export async function uploadImage(file: File, alt = ""): Promise<UploadedMedia> 
   if (!res.ok) throw new Error(data.error ?? "Upload thất bại");
   return data;
 }
+
+/** Ảnh truy vấn cho tìm bằng ảnh: thu nhỏ còn 336px, JPEG (Typesense/CLIP không đọc WebP), trả về base64 */
+export async function imageToSearchJpeg(file: File): Promise<{ base64: string; dataUrl: string }> {
+  if (!file.type.startsWith("image/")) throw new Error("Hãy chọn một file ảnh");
+  const bitmap = await createImageBitmap(file);
+  const scale = Math.min(1, 336 / Math.min(bitmap.width, bitmap.height));
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.round(bitmap.width * scale);
+  canvas.height = Math.round(bitmap.height * scale);
+  const ctx = canvas.getContext("2d");
+  if (!ctx) throw new Error("Trình duyệt không hỗ trợ canvas");
+  ctx.fillStyle = "#fff"; // ảnh PNG trong suốt -> nền trắng như ảnh preview
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.imageSmoothingQuality = "high";
+  ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+  bitmap.close();
+  const dataUrl = canvas.toDataURL("image/jpeg", 0.85);
+  return { base64: dataUrl.slice(dataUrl.indexOf(",") + 1), dataUrl };
+}

@@ -20,7 +20,7 @@ export type R2Config = {
 
 export type QueueConfig = { accountId: string; apiToken: string; queueId: string };
 
-export type TypesenseConfig = { url: string; apiKey: string; collection: string; embedModel: string };
+export type TypesenseConfig = { url: string; apiKey: string; collection: string; embedModel: string; imageModel: string };
 
 export const config = {
   libraryRoot: (): string => path.resolve(req("LIBRARY_ROOT")),
@@ -59,6 +59,7 @@ export const config = {
     apiKey: req("TYPESENSE_API_KEY"),
     collection: process.env.TYPESENSE_COLLECTION || "models",
     embedModel: process.env.TYPESENSE_EMBED_MODEL || "ts/multilingual-e5-small",
+    imageModel: process.env.TYPESENSE_IMAGE_MODEL || "ts/clip-vit-b-p32",
   }),
 };
 
