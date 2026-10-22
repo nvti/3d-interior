@@ -11,12 +11,13 @@
 	"main": "./workers/app.ts",
 	"observability": { "enabled": true },
 	"upload_source_maps": true,
+	"routes": [{ "pattern": "ke.tihado.com", "custom_domain": true }],
 
 	"vars": {
-		"PUBLIC_SITE_URL": "http://localhost:5173",
+		"PUBLIC_SITE_URL": "https://ke.tihado.com",
 		"SITE_NAME": "Kê",
 		"MEDIA_PUBLIC_URL": "https://tv3d.tihado.com",
-		"R2_ACCOUNT_ID": "REPLACE_ME",
+		"R2_ACCOUNT_ID": "c212bdff76b66f998bebf5889206dc0c",
 		"MODELS_BUCKET_NAME": "tv3d-models",
 		"R2_EVICT_DAYS": "30",
 		"DOWNLOAD_LINK_TTL_HOURS": "72",
@@ -34,7 +35,7 @@
 		{
 			"binding": "DB",
 			"database_name": "tv3d",
-			"database_id": "REPLACE_ME",
+			"database_id": "c83c0cf2-f093-42db-80f6-62289a5da1a9",
 			"migrations_dir": "migrations"
 		}
 	],

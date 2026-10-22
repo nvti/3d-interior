@@ -12,3 +12,4 @@ home-agent/sample-library/
 
 # Ảnh preview gốc – đã upload lên R2 (web/scripts/upload-thu-vien.sh)
 THU VIEN/
+.env.production
