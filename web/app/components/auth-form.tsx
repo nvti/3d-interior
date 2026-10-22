@@ -2,10 +2,29 @@ import { Link } from "react-router";
 import { useState } from "react";
 import { authClient } from "~/lib/auth-client";
 import { PageTitle } from "./site";
+import { IconGoogle } from "./icons";
 
-export function AuthForm({ mode, next, google }: { mode: "login" | "register"; next: string; google: boolean }) {
-  const [error, setError] = useState<string | null>(null);
+type Props = { mode: "login" | "register"; next: string; google: boolean; oauthError?: string | null };
+
+export function AuthForm({ mode, next, google, oauthError }: Props) {
+  const [error, setError] = useState<string | null>(oauthError ? oauthErrorMessage(oauthError) : null);
   const [busy, setBusy] = useState(false);
+  const [googleBusy, setGoogleBusy] = useState(false);
+
+  async function onGoogle() {
+    setGoogleBusy(true);
+    setError(null);
+    // Google lỗi thì Better Auth đưa về trang này kèm ?error=<mã>
+    const res = await authClient.signIn.social({
+      provider: "google",
+      callbackURL: next || "/",
+      errorCallbackURL: `/${mode}?next=${encodeURIComponent(next)}`,
+    });
+    if (res.error) {
+      setGoogleBusy(false);
+      setError("Không kết nối được Google, vui lòng thử lại.");
+    }
+  }
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -47,6 +66,19 @@ export function AuthForm({ mode, next, google }: { mode: "login" | "register"; n
         sub={mode === "login" ? "Để mua và tải lại mẫu bất cứ lúc nào." : "Mất chưa tới một phút."}
       />
       <form onSubmit={onSubmit} noValidate className="flex flex-col gap-5 border-t border-ink pt-8">
+        {google && (
+          <>
+            <button type="button" className="btn-outline h-13 gap-3" disabled={googleBusy} onClick={onGoogle}>
+              <IconGoogle />
+              {googleBusy ? "Đang chuyển tới Google…" : "Tiếp tục với Google"}
+            </button>
+            <div className="flex items-center gap-4 text-[12px] tracking-wide text-muted uppercase">
+              <span className="h-px flex-1 bg-line" />
+              hoặc dùng email
+              <span className="h-px flex-1 bg-line" />
+            </div>
+          </>
+        )}
         {mode === "register" && (
           <label className="field-label">
             Tên của bạn hoặc studio
@@ -75,15 +107,6 @@ export function AuthForm({ mode, next, google }: { mode: "login" | "register"; n
         <button className="btn-primary h-13" disabled={busy}>
           {busy ? "Đang xử lý…" : mode === "login" ? "Đăng nhập" : "Tạo tài khoản"}
         </button>
-        {google && (
-          <button
-            type="button"
-            className="btn-outline"
-            onClick={() => authClient.signIn.social({ provider: "google", callbackURL: next || "/" })}
-          >
-            Tiếp tục với Google
-          </button>
-        )}
       </form>
       <p className="text-sm text-muted">
         {mode === "login" ? (
@@ -108,4 +131,11 @@ export function AuthForm({ mode, next, google }: { mode: "login" | "register"; n
 
 export function safeNext(raw: string | null): string {
   return raw && raw.startsWith("/") && !raw.startsWith("//") ? raw : "/";
+}
+
+function oauthErrorMessage(code: string): string {
+  if (code === "access_denied") return "Bạn đã huỷ đăng nhập bằng Google.";
+  if (code === "account_already_linked_to_different_user")
+    return "Tài khoản Google này đã gắn với một tài khoản khác.";
+  return "Đăng nhập bằng Google không thành công, vui lòng thử lại.";
 }

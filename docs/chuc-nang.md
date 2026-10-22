@@ -86,7 +86,7 @@ Tài liệu này mô tả những gì hệ thống **đang làm được**, chia
 ### 1.6 Tài khoản
 
 - **Đăng ký** (`/register`): tên hoặc tên studio, email, mật khẩu từ 8 ký tự.
-- **Đăng nhập** (`/login`): email và mật khẩu. Nếu đã cấu hình Google thì có thêm *Tiếp tục với Google*.
+- **Đăng nhập** (`/login`): email và mật khẩu. Nếu đã cấu hình Google thì có thêm nút *Tiếp tục với Google* ở đầu form (cả ở `/register`); lần đầu dùng Google sẽ tự tạo tài khoản, email trùng tài khoản cũ thì gộp vào tài khoản đó.
 - Phiên đăng nhập giữ **30 ngày**. *Đăng xuất* ở thanh trên cùng.
 - Sau khi đăng nhập, khách được đưa về đúng trang đang xem trước đó.
 

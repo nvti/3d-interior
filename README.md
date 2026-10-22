@@ -137,6 +137,13 @@ pnpm wrangler secret put GOOGLE_CLIENT_ID
 pnpm wrangler secret put GOOGLE_CLIENT_SECRET
 ```
 
+Đăng nhập Google: vào Google Cloud Console → *APIs & Services* → *Credentials* → *Create credentials* → *OAuth client ID*, loại **Web application**. Thêm *Authorized redirect URIs*:
+
+- `https://ke.tihado.com/api/auth/callback/google`
+- `http://localhost:5174/api/auth/callback/google` (chạy local; đặt `GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET` trong `web/.dev.vars`)
+
+Chưa đặt `GOOGLE_CLIENT_ID` thì trang đăng nhập không hiện nút Google. Email Google trùng với tài khoản đã đăng ký bằng email sẽ được gộp vào tài khoản đó.
+
 Áp migration rồi deploy:
 
 ```bash
