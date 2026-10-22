@@ -1,0 +1,117 @@
+@import "tailwindcss";
+
+/* Design tokens theo bản thiết kế: nền bê tông, chữ mực, một điểm nhấn cam */
+@theme {
+  --color-ground: #ecebe8;
+  --color-paper: #f7f7f5;
+  --color-ink: #121212;
+  --color-ink-2: #2a2927;
+  --color-muted: #5c5b57;
+  --color-faint: #7a7974;
+  --color-line: #d4d2cc;
+  --color-line-strong: #b9b7b0;
+  --color-accent: #ff5a1f;
+  --color-tone-1: #d6d3cc;
+  --color-tone-2: #cbccc7;
+  --color-tone-3: #d9d1c6;
+  --color-tone-4: #c6c9c3;
+  --color-ok: #1f5c4a;
+  --color-ok-bg: #e3ede8;
+  --color-warn: #6b4105;
+  --color-warn-bg: #fbefd9;
+  --color-danger: #9b1c1c;
+
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Inter Tight", "Inter", ui-sans-serif, sans-serif;
+  --font-serif: "Cormorant Garamond", ui-serif, Georgia, serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, monospace;
+}
+
+@layer base {
+  html {
+    background: var(--color-ground);
+    color: var(--color-ink);
+    -webkit-font-smoothing: antialiased;
+  }
+  ::selection {
+    background: var(--color-ink);
+    color: var(--color-ground);
+  }
+  :focus-visible {
+    outline: 2px solid var(--color-ink);
+    outline-offset: 2px;
+  }
+  input::placeholder,
+  textarea::placeholder {
+    color: var(--color-faint);
+  }
+}
+
+/* Tailwind v4: các lớp tự định nghĩa dùng @utility để @apply và biến thể (hover:, md:) hoạt động */
+@utility label-mono {
+  @apply font-mono text-[11px] tracking-wide text-muted;
+}
+@utility btn {
+  @apply inline-flex h-12 cursor-pointer items-center justify-center gap-2 rounded-full px-6 text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50;
+}
+@utility btn-primary {
+  @apply btn bg-ink text-white hover:bg-ink-2;
+}
+@utility btn-outline {
+  @apply btn border border-ink bg-transparent text-ink hover:bg-ink hover:text-white;
+}
+@utility btn-sm {
+  @apply h-10 px-4 text-[13px];
+}
+@utility pill {
+  @apply inline-flex h-10 cursor-pointer items-center gap-2 rounded-full border border-line-strong px-4 text-[13px] select-none;
+}
+@utility pill-on {
+  @apply border-ink bg-ink text-white;
+}
+@utility field {
+  @apply h-11 w-full rounded-lg border border-line-strong bg-white px-3 text-[15px] outline-none focus:border-ink;
+}
+@utility field-label {
+  @apply flex flex-col gap-1.5 text-[13px] font-medium;
+}
+@utility card {
+  @apply rounded-xl border border-line bg-white p-5;
+}
+
+@layer components {
+  /* Nội dung viết bằng editor (HTML đã render an toàn ở server) */
+  .prose-content {
+    @apply text-[17px] leading-[1.75] text-ink-2;
+  }
+  .prose-content > * + * {
+    margin-top: 1em;
+  }
+  .prose-content h2 {
+    @apply mt-10 font-display text-2xl font-medium tracking-tight text-ink;
+  }
+  .prose-content h3 {
+    @apply mt-8 font-display text-xl font-medium tracking-tight text-ink;
+  }
+  .prose-content a {
+    @apply underline underline-offset-4;
+  }
+  .prose-content ul {
+    @apply list-disc pl-6;
+  }
+  .prose-content ol {
+    @apply list-decimal pl-6;
+  }
+  .prose-content blockquote {
+    @apply border-l border-ink pl-5 font-serif text-2xl italic leading-snug;
+  }
+  .prose-content figure img {
+    @apply w-full;
+  }
+  .prose-content hr {
+    @apply border-line;
+  }
+  .prose-content code {
+    @apply rounded bg-paper px-1 font-mono text-[0.9em];
+  }
+}

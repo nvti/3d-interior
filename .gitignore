@@ -1,0 +1,14 @@
+node_modules/
+.env
+.dev.vars
+.wrangler/
+build/
+.react-router/
+home-agent/.agent/
+home-agent/dist/
+home-agent/typesense-data/
+.DS_Store
+home-agent/sample-library/
+
+# Ảnh preview gốc – đã upload lên R2 (web/scripts/upload-thu-vien.sh)
+THU VIEN/

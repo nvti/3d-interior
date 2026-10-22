@@ -1,0 +1,33 @@
+# Chạy trên máy nhà: docker compose up -d
+# - typesense: máy tìm kiếm (từ khoá + ngữ nghĩa)
+# - cloudflared: Cloudflare Tunnel đưa Typesense ra internet an toàn (không mở cổng router)
+# - agent: tool kéo job upload từ Queue (tuỳ chọn – cũng có thể chạy "pnpm worker" trực tiếp)
+services:
+  typesense:
+    image: typesense/typesense:30.2
+    restart: always
+    command: --data-dir /data --api-key=${TYPESENSE_API_KEY}
+    ports:
+      - "127.0.0.1:8108:8108" # chỉ mở cho máy này; internet đi qua tunnel
+    volumes:
+      - ./typesense-data:/data
+
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    restart: always
+    command: tunnel --no-autoupdate run --token ${TUNNEL_TOKEN}
+    depends_on:
+      - typesense
+
+  agent:
+    build: .
+    restart: always
+    env_file: .env
+    environment:
+      LIBRARY_ROOT: /library
+      WORK_DIR: /work
+    volumes:
+      - ${LIBRARY_ROOT}:/library:ro
+      - ./.agent:/work
+    command: ["node", "dist/worker.js"]
+    profiles: ["agent"] # bật bằng: docker compose --profile agent up -d

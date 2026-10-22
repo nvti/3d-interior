@@ -1,0 +1,24 @@
+# Copy thành .dev.vars để chạy local. Trên production dùng: pnpm wrangler secret put <TÊN>
+# Giá trị ở đây cũng ghi đè "vars" cùng tên trong wrangler.jsonc khi chạy local.
+BETTER_AUTH_SECRET="dev-secret-change-me-at-least-32-characters"
+AGENT_TOKEN="dev-agent-token"
+
+# Ảnh lấy từ R2 giả lập qua Worker (route /media chỉ có khi pnpm dev)
+MEDIA_PUBLIC_URL="http://localhost:5173/media"
+
+# Typesense local (tuỳ chọn): cd ../home-agent && docker compose up -d typesense
+# Để trống TYPESENSE_API_KEY thì website dùng tìm kiếm D1.
+TYPESENSE_URL="http://localhost:8108"
+TYPESENSE_API_KEY=""
+
+# Giả lập webhook SePay bằng curl (xem README)
+SEPAY_API_KEY="dev-sepay-key"
+
+# Không cần khi chạy local
+R2_ACCESS_KEY_ID=""
+R2_SECRET_ACCESS_KEY=""
+CF_ACCESS_CLIENT_ID=""
+CF_ACCESS_CLIENT_SECRET=""
+RESEND_API_KEY=""                 # để trống: nội dung email in ra console
+GOOGLE_CLIENT_ID=""
+GOOGLE_CLIENT_SECRET=""

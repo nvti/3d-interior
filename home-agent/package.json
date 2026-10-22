@@ -1,0 +1,30 @@
+{
+  "name": "thu-vien-3d-home-agent",
+  "version": "1.0.0",
+  "description": "Tool chạy trên máy nhà: quét thư viện mẫu 3D, đăng lên website, upload file lên R2 khi có đơn",
+  "scripts": {
+    "build": "tsc",
+    "typecheck": "tsc --noEmit",
+    "scan": "tsc && node --env-file=.env dist/scan.js",
+    "worker": "tsc && node --env-file=.env dist/worker.js",
+    "typesense:setup": "tsc && node --env-file=.env dist/typesense-setup.js",
+    "sample": "tsc && node dist/sample-library.js"
+  },
+  "dependencies": {
+    "@aws-sdk/client-s3": "^3.1155.0",
+    "@aws-sdk/lib-storage": "^3.1155.0",
+    "archiver": "^8.0.0",
+    "sharp": "^0.35.5"
+  },
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=20.6"
+  },
+  "devDependencies": {
+    "@types/archiver": "^8.0.0",
+    "@types/node": "^26.6.5",
+    "typescript": "^7.0.2"
+  },
+  "packageManager": "pnpm@12.4.2"
+}

@@ -1,0 +1,14 @@
+# Cấu hình pnpm cho web (không phải monorepo – chỉ dùng cho các thiết lập bên dưới)
+
+# Bộ công cụ Cloudflare phát hành hằng ngày và pin phiên bản chính xác của nhau
+# (wrangler -> workerd), nên bỏ qua giới hạn tuổi phát hành cho nhóm này.
+minimumReleaseAgeExclude:
+  - wrangler
+  - workerd
+  - miniflare
+  - "@cloudflare/*"
+
+# Các gói được phép chạy script cài đặt (tải binary)
+allowBuilds:
+  workerd: true
+  esbuild: true
