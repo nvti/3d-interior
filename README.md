@@ -148,7 +148,7 @@ Chưa đặt `GOOGLE_CLIENT_ID` thì trang đăng nhập không hiện nút Goog
 
 ```bash
 pnpm db:migrate:remote
-pnpm deploy
+pnpm run deploy   # không dùng "pnpm deploy": đó là lệnh có sẵn của pnpm
 ```
 
 Gán quyền admin trên production: lệnh `UPDATE user ...` ở trên, đổi `--local` thành `--remote`.
