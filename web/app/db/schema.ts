@@ -382,3 +382,49 @@ export const downloadRequests = sqliteTable(
     index("download_requests_user_idx").on(t.userId, t.createdAt),
   ],
 );
+
+/* ================================================================== */
+/* Nhập mẫu từ máy nhà: admin bấm quét -> chọn mẫu -> home-agent nhập  */
+/* ================================================================== */
+
+/** Thư mục mẫu chưa có trên website, do home-agent báo về sau mỗi lần quét */
+export type LibraryCandidate = {
+  rel: string; // đường dẫn tương đối trong LIBRARY_ROOT
+  categoryPath: string[];
+  title: string;
+  sku: string;
+  images: number;
+  bytes: number;
+  formats: string[];
+  copying: boolean; // file vừa thay đổi trong vài phút gần đây – có thể đang chép dở
+};
+
+export const libraryScans = sqliteTable("library_scans", {
+  id: id(),
+  status: text("status", { enum: ["pending", "running", "done", "failed"] })
+    .notNull()
+    .default("pending"),
+  candidates: text("candidates", { mode: "json" }).$type<LibraryCandidate[]>(),
+  totalFound: integer("total_found"), // có thể lớn hơn số candidates (bị cắt bớt)
+  error: text("error"),
+  startedAt: ts("started_at"),
+  finishedAt: ts("finished_at"),
+  ...timestamps,
+});
+
+export const libraryImports = sqliteTable(
+  "library_imports",
+  {
+    id: id(),
+    rel: text("rel").notNull(),
+    sku: text("sku").notNull(),
+    title: text("title").notNull(),
+    status: text("status", { enum: ["pending", "running", "done", "failed"] })
+      .notNull()
+      .default("pending"),
+    modelId: text("model_id").references(() => models.id, { onDelete: "set null" }),
+    error: text("error"),
+    ...timestamps,
+  },
+  (t) => [index("library_imports_status_idx").on(t.status, t.createdAt), index("library_imports_rel_idx").on(t.rel)],
+);

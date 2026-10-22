@@ -25,6 +25,21 @@ export type ModelUpsert = {
   maxVersion?: string;
   images: PreviewImage[];
   publish: boolean;
+  ai?: AiText; // chỉ dùng khi tạo mẫu mới
+};
+
+/** Nội dung AI viết từ ảnh preview (xem describe.ts) */
+export type AiText = {
+  title: string;
+  subtitle: string;
+  description: string;
+  paragraphs: string[];
+  highlights: string[];
+  tags: string[];
+  style: string;
+  materials: string;
+  colors: string[];
+  room: string;
 };
 
 export type ModelUpsertResult = { ok: true; modelId: string; created: boolean };
@@ -43,4 +58,19 @@ export type PulledMessage = {
   lease_id: string;
   attempts?: number;
   timestamp_ms?: number;
+};
+
+/** GET /api/agent/library/tasks – việc admin giao ở /admin/library */
+export type LibraryTasks = { scan: { id: string } | null; imports: { id: string; rel: string }[] };
+
+/** Thư mục mẫu chưa có trên website (giống LibraryCandidate trong web/app/db/schema.ts) */
+export type LibraryCandidate = {
+  rel: string;
+  categoryPath: string[];
+  title: string;
+  sku: string;
+  images: number;
+  bytes: number;
+  formats: string[];
+  copying: boolean;
 };

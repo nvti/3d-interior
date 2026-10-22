@@ -6,7 +6,7 @@ import { requireAdmin } from "~/lib/auth.server";
 import { getCovers } from "~/lib/models.server";
 import { formatDate, formatPrice } from "~/lib/format";
 import { AdminBody, AdminTop, EmptyState, Pagination, StatusBadge } from "~/components/admin-ui";
-import { IconPlus, IconSearch } from "~/components/icons";
+import { IconPlus, IconSearch, IconUpload } from "~/components/icons";
 
 const PER = 50;
 
@@ -62,6 +62,9 @@ export default function AdminModels({ loaderData }: Route.ComponentProps) {
   return (
     <>
       <AdminTop title="Mẫu 3D" subtitle={`${total} mẫu${filtered ? " khớp bộ lọc" : " trong thư viện"}`}>
+        <Link to="/admin/library" className="btn-outline btn-sm">
+          <IconUpload size={15} /> Nhập từ máy nhà
+        </Link>
         <Link to="/admin/models/new" className="btn-primary btn-sm">
           <IconPlus size={15} /> Thêm mẫu
         </Link>

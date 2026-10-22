@@ -1,6 +1,7 @@
 // Chạy liên tục trên máy nhà: kéo job từ Cloudflare Queue (HTTP pull; R2_MODE=local: hỏi website local),
 // nén thư mục mẫu, upload lên bucket private, báo website gửi link cho khách.
-// Song song đó, định kỳ nhúng ảnh preview vào Typesense cho tìm bằng ảnh (xem images.ts).
+// Song song đó, định kỳ nhúng ảnh preview vào Typesense cho tìm bằng ảnh (xem images.ts)
+// và nhận việc quét/nhập mẫu mới admin giao ở /admin/library (xem library-tasks.ts).
 //
 // Dùng: pnpm worker
 import fs from "node:fs";
@@ -8,6 +9,7 @@ import fsp from "node:fs/promises";
 import path from "node:path";
 import { config } from "./config.js";
 import { imageSyncLoop } from "./images.js";
+import { libraryLoop } from "./library-tasks.js";
 import { api, errorMessage, headSize, loadState, log, putObject, sleep, zipFolder } from "./lib.js";
 import type { AgentState, PulledMessage, UploadJob } from "./types.js";
 
@@ -115,6 +117,7 @@ async function localLoop(): Promise<void> {
 
 async function main(): Promise<void> {
   void imageSyncLoop(); // chạy song song: nhúng ảnh preview cho tìm bằng ảnh
+  void libraryLoop(); // và việc quét/nhập mẫu từ trang admin
   if (config.localMode()) return localLoop();
   log("Tool máy nhà đang chạy – chờ job upload…");
   let idle = 0;

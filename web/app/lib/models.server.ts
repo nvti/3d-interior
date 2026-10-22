@@ -3,7 +3,7 @@ import { env } from "cloudflare:workers";
 import { getDb, schema } from "./db.server";
 import { mediaVariantUrl } from "./r2.server";
 import { tsQuote, tsSearch, typesenseEnabled, type SearchDoc } from "./typesense.server";
-import { stripDiacritics } from "./format";
+import { slugify, stripDiacritics } from "./format";
 
 const { models, categories, modelImages, media, tags, modelTags, modelRelated } = schema;
 
@@ -263,4 +263,18 @@ export async function afterModelChanged(modelId: string) {
 export async function listPublishedModelIds(limit = 100000) {
   const rows = await getDb().select({ id: models.id }).from(models).orderBy(desc(models.updatedAt)).limit(limit);
   return rows.map((r) => r.id);
+}
+
+/** Tạo tag còn thiếu (theo slug), trả về id theo đúng thứ tự tên */
+export async function ensureTags(names: string[]): Promise<string[]> {
+  const rows = [...new Map(names.map((n) => n.trim()).filter(Boolean).map((name) => [slugify(name), name])).entries()]
+    .filter(([slug]) => slug)
+    .slice(0, 30)
+    .map(([slug, name]) => ({ id: crypto.randomUUID(), name, slug }));
+  if (!rows.length) return [];
+  const db = getDb();
+  await db.insert(tags).values(rows).onConflictDoNothing({ target: tags.slug });
+  const found = await db.select({ id: tags.id, slug: tags.slug }).from(tags).where(inArray(tags.slug, rows.map((r) => r.slug)));
+  const bySlug = new Map(found.map((t) => [t.slug, t.id]));
+  return rows.map((r) => bySlug.get(r.slug)).filter((x): x is string => !!x);
 }

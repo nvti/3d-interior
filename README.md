@@ -208,7 +208,7 @@ pnpm worker                        # chạy liên tục để nhận job upload
 ```
 
 - `scan` tạo ảnh WebP (400/1200/2000px) lên bucket public và đăng metadata. Lần sau chỉ xử lý thư mục có thay đổi. **Không** nén hay upload file mẫu ở bước này.
-- `worker` nên chạy thường trực: `docker compose --profile agent up -d`, hoặc dùng `pm2`/launchd.
+- `worker` nên chạy thường trực: `docker compose --profile agent up -d`, hoặc dùng `pm2`/launchd. Worker cũng nhận việc từ trang **Nhập mẫu mới** (`/admin/library`): admin bấm quét, chọn mẫu trên cây thư mục, máy nhà tạo ảnh + nhờ Claude viết nội dung rồi đăng thành bản nháp. Cần `ANTHROPIC_API_KEY` trong `home-agent/.env` (không có thì nhập mẫu không kèm nội dung).
 - Code nằm trong `home-agent/src/*.ts`. Các lệnh `pnpm scan/worker/typesense:setup` tự biên dịch sang `dist/` trước khi chạy; `pnpm typecheck` để kiểm tra kiểu. Kiểu dữ liệu trao đổi với website nằm ở `src/types.ts`, nên giữ khớp với `web/workers/api/agent.ts`.
 - Chạy `scan` trong Docker: `docker compose --profile agent run --rm agent node dist/scan.js --publish`.
 - Máy nhà tắt thì job vẫn chờ trong queue. Cron mỗi đêm đẩy lại job kẹt quá 6 giờ.

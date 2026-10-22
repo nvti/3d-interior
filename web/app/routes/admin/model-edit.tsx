@@ -6,7 +6,7 @@ import type { Route } from "./+types/model-edit";
 import { requireAdmin } from "~/lib/auth.server";
 import { getDb, schema } from "~/lib/db.server";
 import { flattenTree, getCategoryTree } from "~/lib/categories.server";
-import { afterModelChanged, getManualRelatedIds, getModelCards, RELATED_LIMIT, suggestRelated } from "~/lib/models.server";
+import { afterModelChanged, ensureTags, getManualRelatedIds, getModelCards, RELATED_LIMIT, suggestRelated } from "~/lib/models.server";
 import { ensureUpload } from "~/lib/downloads.server";
 import { mediaVariantUrl } from "~/lib/r2.server";
 import { extractTiptapText, isTiptapDoc, renderTiptapHtml } from "~/lib/tiptap";
@@ -185,14 +185,7 @@ export async function action({ request, params }: Route.ActionArgs) {
     .parse(JSON.parse(String(form.get("images") ?? "[]")));
   const stmts = [db.delete(modelImages).where(eq(modelImages.modelId, modelId))];
   // Tag
-  const tagNames = [...new Set(String(form.get("tags") ?? "").split(",").map((t) => t.trim()).filter(Boolean))].slice(0, 30);
-  const tagRows = tagNames.map((name) => ({ id: crypto.randomUUID(), name, slug: slugify(name) })).filter((t) => t.slug);
-  if (tagRows.length) {
-    await db.insert(tags).values(tagRows).onConflictDoNothing({ target: tags.slug });
-  }
-  const tagIds = tagRows.length
-    ? (await db.select({ id: tags.id }).from(tags).where(inArray(tags.slug, tagRows.map((t) => t.slug)))).map((t) => t.id)
-    : [];
+  const tagIds = await ensureTags(String(form.get("tags") ?? "").split(","));
   // Mẫu tương tự chọn tay: giữ thứ tự, bỏ chính nó và id không còn tồn tại
   const relatedRaw = z
     .array(z.string())

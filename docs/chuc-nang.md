@@ -111,7 +111,7 @@ Các ô số liệu (bấm được để lọc nhanh): mẫu đã xuất bản 
 **Danh sách**
 - Tìm theo tên hoặc mã mẫu; lọc theo trạng thái (đã xuất bản / bản nháp / lưu trữ) và theo file trên R2 (có / chưa có / đang đẩy / lỗi).
 - Bảng gồm ảnh bìa, tên, mã, thư mục, giá, trạng thái, trạng thái file. Mỗi trang 50 dòng.
-- Nút *+ Thêm mẫu*.
+- Nút *+ Thêm mẫu* và *Nhập từ máy nhà*.
 
 **Trang sửa mẫu**
 
@@ -131,7 +131,19 @@ Các ô số liệu (bấm được để lọc nhanh): mẫu đã xuất bản 
 - *Xoá mẫu*: nếu mẫu **đã có người mua** thì không xoá mà chuyển sang *Lưu trữ*, để khách cũ vẫn tải được. Mẫu chưa bán thì xoá hẳn, kèm file trên R2.
 - **An toàn nội dung**: HTML hiển thị cho khách được tạo lại ở server theo whitelist. Thẻ lạ, link `javascript:`, ảnh không nằm trên domain media đều bị loại bỏ.
 
-### 2.3 Cây thư mục — `/admin/categories`
+### 2.3 Nhập mẫu mới — `/admin/library`
+
+Dùng khi vừa chép thêm mẫu vào thư viện ở máy nhà, thay cho việc chạy `pnpm scan` bằng tay.
+
+1. Chép thư mục mẫu (file mẫu + vài ảnh preview) vào **đúng thư mục danh mục** trong thư viện, theo quy ước ở mục 3.1. Nên đặt mã trong tên thư mục, ví dụ `[SF-015] Sofa da Ý`, để đổi tên hay chuyển chỗ sau này không bị coi là mẫu mới.
+2. Bấm **Quét mẫu mới**. Website chỉ ghi yêu cầu; `pnpm worker` ở máy nhà hỏi việc 15 giây một lần, quét thư viện và gửi về danh sách thư mục mẫu **chưa có trên website** (so theo SKU). Trang tự cập nhật. Chờ quá một phút mà máy nhà chưa nhận thì trang nhắc kiểm tra worker.
+3. Danh sách hiện dạng **cây thư mục**: tích từng mẫu hoặc cả một nhánh (ô của thư mục có trạng thái chọn một phần), lọc theo tên/mã/đường dẫn, thu gọn/mở từng nhánh. Mỗi mẫu ghi số ảnh, dung lượng, định dạng. Mẫu có file vừa thay đổi trong 2 phút gần đây được đánh dấu **Đang chép dở** và chưa cho chọn; mẫu không có ảnh được cảnh báo.
+4. Bấm **Nhập N mẫu** (tối đa 500 mẫu mỗi lần). Với từng mẫu, máy nhà tạo ảnh WebP, gửi tối đa 3 ảnh cho Claude viết **tiêu đề, câu mô tả, mô tả ngắn, nội dung, điểm nổi bật, tag, phong cách, chất liệu, meta SEO**, rồi tạo mẫu ở dạng **Bản nháp**. AI lỗi hoặc máy nhà chưa có `ANTHROPIC_API_KEY` thì mẫu vẫn được tạo, chỉ thiếu nội dung.
+5. Bảng **Lượt nhập gần đây** cho biết từng mẫu đang chờ / đang nhập / xong / lỗi. Mẫu xong có nút *Sửa & xuất bản*; mẫu lỗi có nút *Thử lại*.
+
+Việc quét hoặc nhập bị bỏ dở quá 30 phút (máy nhà tắt giữa chừng) sẽ được giao lại.
+
+### 2.4 Cây thư mục — `/admin/categories`
 
 - Hai cây riêng: **Mẫu 3D** và **Chuyên mục blog**.
 - **Thêm** thư mục vào gốc hoặc vào một thư mục bất kỳ.
@@ -141,21 +153,21 @@ Các ô số liệu (bấm được để lọc nhanh): mẫu đã xuất bản 
 - Mỗi dòng hiện đường dẫn (`/noi-that/phong-khach/sofa/`) và số mẫu của nhánh.
 - Cây cũng được **tự tạo khi import** từ máy nhà, theo đúng cấu trúc thư mục trên ổ cứng.
 
-### 2.4 Bài viết & trang — `/admin/posts`, `/admin/posts/:id`
+### 2.5 Bài viết & trang — `/admin/posts`, `/admin/posts/:id`
 
 - Hai tab: **Tạp chí** (bài viết) và **Trang tĩnh**.
 - Trang soạn gồm: tiêu đề, slug, sapo, nội dung (cùng editor với mẫu), trạng thái, ảnh bìa (tải lên và tự resize), chuyên mục, meta SEO.
 - **Gắn mẫu vào bài**: nhập SKU hoặc slug cách nhau bằng dấu phẩy, tối đa 24 mẫu, theo đúng thứ tự nhập. Các mẫu này hiện cuối bài để khách mua.
 - Xoá bài hoặc trang.
 
-### 2.5 Đơn hàng — `/admin/orders`
+### 2.6 Đơn hàng — `/admin/orders`
 
 - Lọc: tất cả / chờ thanh toán / đã thanh toán / hoàn tiền / hết hạn.
 - Bảng gồm mã đơn, email khách, các mẫu trong đơn, tổng tiền, ngày tạo, trạng thái.
 - **Xác nhận đã nhận tiền** (đơn chờ): dùng khi webhook không về nhưng tiền đã vào tài khoản. Thao tác này chạy đúng quy trình như thanh toán tự động: cấp quyền, tạo link, gửi email.
 - **Hoàn tiền** (đơn đã thanh toán, có phí): đơn chuyển sang *Đã hoàn tiền* và khách **mất quyền tải** các mẫu trong đơn. Bản thân việc trả tiền cho khách thì làm thủ công qua ngân hàng.
 
-### 2.6 Cấp quyền admin
+### 2.7 Cấp quyền admin
 
 Chưa có giao diện cấp quyền. Admin được gán bằng lệnh SQL, xem README mục 1 và 2.
 
@@ -183,6 +195,7 @@ Chạy trong thư mục `home-agent/` (Node.js ≥ 20.6, viết bằng TypeScrip
 - Với mỗi job: nén thư mục mẫu thành zip tạm → upload nhiều phần song song lên bucket private (tự thử lại từng phần khi mạng chập chờn) → so dung lượng trên R2 với file local → báo website. Website chuyển các yêu cầu tải đang chờ sang *sẵn sàng* và gửi email cho khách. Cuối cùng xoá zip tạm.
 - Upload lỗi thì thử lại sau 2 phút, tối đa 8 lần, sau đó báo lỗi về website (mẫu chuyển sang *Lỗi*). Không tìm thấy thư mục thì báo lỗi ngay.
 - Máy tắt thì job vẫn nằm chờ trong hàng đợi.
+- Song song đó nhận việc *Quét mẫu mới* / *Nhập mẫu* giao từ `/admin/library` (mục 2.3) và nhúng ảnh cho tìm bằng ảnh (mục 3.4).
 
 ### 3.3 `pnpm typesense:setup`
 

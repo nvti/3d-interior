@@ -4,7 +4,7 @@ import { sql } from "drizzle-orm";
 import type { Route } from "./+types/layout";
 import { requireAdmin } from "~/lib/auth.server";
 import { getDb } from "~/lib/db.server";
-import { IconArrowLeft, IconCube, IconDashboard, IconDoc, IconFolder, IconReceipt } from "~/components/icons";
+import { IconArrowLeft, IconCube, IconDashboard, IconDoc, IconFolder, IconReceipt, IconUpload } from "~/components/icons";
 
 export const meta: Route.MetaFunction = () => [{ title: "Quản trị" }, { name: "robots", content: "noindex" }];
 
@@ -23,6 +23,7 @@ export default function AdminLayout({ loaderData }: Route.ComponentProps) {
   const links = [
     { to: "/admin", label: "Tổng quan", icon: IconDashboard, end: true },
     { to: "/admin/models", label: "Mẫu 3D", icon: IconCube, badge: todo.drafts, hint: "bản nháp" },
+    { to: "/admin/library", label: "Nhập mẫu mới", icon: IconUpload },
     { to: "/admin/categories", label: "Cây thư mục", icon: IconFolder },
     { to: "/admin/posts", label: "Bài viết & trang", icon: IconDoc },
     { to: "/admin/orders", label: "Đơn hàng", icon: IconReceipt, badge: todo.pending, hint: "đơn chờ thanh toán" },

@@ -171,12 +171,14 @@ export async function walk(dir: string, onDir: (dir: string, entries: Dirent[]) 
   }
 }
 
-export type FolderSignature = { bytes: number; files: number; signature: string };
+export type FolderSignature = { bytes: number; files: number; signature: string; changedMs: number };
 
-/** Chữ ký nhanh của một thư mục (số file + tổng dung lượng + thời gian sửa mới nhất) – không cần đọc nội dung */
+/** Chữ ký nhanh của một thư mục (số file + tổng dung lượng + thời gian sửa mới nhất) – không cần đọc nội dung.
+ *  changedMs: lần cuối có file được ghi/chép vào (ctime – Finder giữ nguyên mtime gốc khi chép) */
 export async function folderSignature(dir: string): Promise<FolderSignature> {
   let bytes = 0;
   let latest = 0;
+  let changedMs = 0;
   let files = 0;
   async function rec(d: string): Promise<void> {
     for (const e of await fsp.readdir(d, { withFileTypes: true })) {
@@ -187,10 +189,11 @@ export async function folderSignature(dir: string): Promise<FolderSignature> {
         bytes += st.size;
         files += 1;
         latest = Math.max(latest, st.mtimeMs);
+        changedMs = Math.max(changedMs, st.mtimeMs, st.ctimeMs);
       }
     }
   }
   await rec(dir);
   const signature = crypto.createHash("sha256").update(`${files}:${bytes}:${Math.floor(latest)}`).digest("hex");
-  return { bytes, files, signature };
+  return { bytes, files, signature, changedMs };
 }

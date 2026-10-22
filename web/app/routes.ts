@@ -22,6 +22,7 @@ export default [
       index("routes/admin/index.tsx"),
       route("models", "routes/admin/models.tsx"),
       route("models/:id", "routes/admin/model-edit.tsx"),
+      route("library", "routes/admin/library.tsx"),
       route("categories", "routes/admin/categories.tsx"),
       route("posts", "routes/admin/posts.tsx"),
       route("posts/:id", "routes/admin/post-edit.tsx"),
