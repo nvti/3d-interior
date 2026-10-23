@@ -195,7 +195,7 @@ export default function ModelPage({ loaderData }: Route.ComponentProps) {
           {tags.length > 0 && (
             <div className="flex flex-wrap gap-2">
               {tags.map((t) => (
-                <Link key={t.slug} to={`/?q=${encodeURIComponent(t.name)}`} className="rounded-full border border-line-strong px-3.5 py-1.5 text-[13px] hover:border-ink">
+                <Link key={t.slug} to={`/?tag=${encodeURIComponent(t.slug)}`} className="rounded-full border border-line-strong px-3.5 py-1.5 text-[13px] hover:border-ink">
                   {t.name}
                 </Link>
               ))}

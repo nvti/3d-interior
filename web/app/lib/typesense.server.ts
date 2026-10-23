@@ -65,7 +65,8 @@ export async function tsDelete(id: string) {
   if (!res.ok && res.status !== 404) throw new Error(`Typesense delete ${res.status}`);
 }
 
-export type TsSearchResult = { ids: string[]; found: number };
+export type TsFacetCount = { value: string; count: number };
+export type TsSearchResult = { ids: string[]; found: number; facets: Record<string, TsFacetCount[]> };
 
 export async function tsSearch(params: Record<string, string>, timeoutMs = 2500): Promise<TsSearchResult> {
   const qs = new URLSearchParams(params);
@@ -74,8 +75,15 @@ export async function tsSearch(params: Record<string, string>, timeoutMs = 2500)
     signal: AbortSignal.timeout(timeoutMs),
   });
   if (!res.ok) throw new Error(`Typesense search ${res.status}`);
-  const data = (await res.json()) as { found: number; hits: { document: { id: string } }[] };
-  return { ids: data.hits.map((h) => h.document.id), found: data.found };
+  const data = (await res.json()) as {
+    found: number;
+    hits: { document: { id: string } }[];
+    facet_counts?: { field_name: string; counts: TsFacetCount[] }[];
+  };
+  const facets = Object.fromEntries(
+    (data.facet_counts ?? []).map((f) => [f.field_name, f.counts.map(({ value, count }) => ({ value, count }))]),
+  );
+  return { ids: data.hits.map((h) => h.document.id), found: data.found, facets };
 }
 
 /** Tìm qua multi_search (POST) – cho tham số dài như ảnh base64 trong vector_query */
@@ -92,7 +100,7 @@ export async function tsSearchPost(params: Record<string, string>, timeoutMs = 8
   };
   const r = data.results[0];
   if (!r || r.error) throw new Error(`Typesense search ${r?.code ?? ""}: ${r?.error ?? "không có kết quả"}`);
-  return { ids: (r.hits ?? []).map((h) => h.document.id), found: r.found ?? 0 };
+  return { ids: (r.hits ?? []).map((h) => h.document.id), found: r.found ?? 0, facets: {} };
 }
 
 /** Giá trị trong filter_by của Typesense phải bọc backtick */

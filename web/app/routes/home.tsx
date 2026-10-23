@@ -7,6 +7,7 @@ import {
   getFacets,
   ImageSearchError,
   parseSearchQuery,
+  resolveTags,
   searchByImage,
   searchModels,
   type FacetOption,
@@ -26,8 +27,9 @@ export function meta({ loaderData: data }: Route.MetaArgs) {
 export async function loader({ request }: Route.LoaderArgs) {
   const url = new URL(request.url);
   const q = parseSearchQuery(url);
+  const selectedTags = await resolveTags(q.tags);
   const [result, tree, counts, facets] = await Promise.all([
-    searchModels(q),
+    searchModels(q, selectedTags),
     getCategoryTree("model"),
     categoryCounts(),
     getFacets(q.cat),
@@ -60,7 +62,7 @@ export async function loader({ request }: Route.LoaderArgs) {
       : { parent: parentOfActive, list: parentOfActive?.children ?? [] }
     : null;
 
-  const isLanding = !q.q && !q.cat && !q.styles.length && !q.engines.length && !q.formats.length && q.price === "all" && q.page === 1;
+  const isLanding = !q.q && !q.cat && !q.styles.length && !q.engines.length && !q.formats.length && !q.tags.length && q.price === "all" && q.page === 1;
 
   let feature: { title: string; excerpt: string | null; slug: string; cover: string | null } | null = null;
   if (isLanding) {
@@ -90,6 +92,7 @@ export async function loader({ request }: Route.LoaderArgs) {
     isLanding,
     feature,
     facets,
+    selectedTags,
   };
 }
 
@@ -98,7 +101,8 @@ export async function action({ request }: Route.ActionArgs) {
   const form = await request.formData();
   const image = String(form.get("image") ?? "");
   try {
-    return { result: await searchByImage(parseSearchQuery(new URL(request.url)), image) };
+    const q = parseSearchQuery(new URL(request.url));
+    return { result: await searchByImage(q, await resolveTags(q.tags), image) };
   } catch (err) {
     if (err instanceof ImageSearchError) return { error: err.message };
     throw err;
@@ -121,7 +125,7 @@ function useParamHref() {
 }
 
 export default function Home({ loaderData }: Route.ComponentProps) {
-  const { query, roots, activeCat, trail, subTabs, isLanding, feature, facets } = loaderData;
+  const { query, roots, activeCat, trail, subTabs, isLanding, feature, facets, selectedTags } = loaderData;
   // giá trị đang chọn vẫn hiện (số 0) dù danh mục mới không còn mẫu nào khớp, để bỏ chọn được
   const withSelected = (opts: FacetOption[], selected: string[]) => [
     ...opts,
@@ -131,13 +135,19 @@ export default function Home({ loaderData }: Route.ComponentProps) {
   const engineOpts = withSelected(facets.engines, query.engines);
   const formatOpts = withSelected(facets.formats, query.formats);
   const showPrice = (facets.free > 0 && facets.paid > 0) || query.price !== "all";
-  const hasFacets = styleOpts.length + engineOpts.length + formatOpts.length > 0 || showPrice;
+  // tag: đang chọn lên đầu, sau đó là tag hay gặp trong kết quả hiện tại
+  const tagOpts = [
+    ...selectedTags.map((t) => ({ ...t, count: null as number | null })),
+    ...(loaderData.result.tagFacets ?? []),
+  ];
+  const hasFacets = styleOpts.length + engineOpts.length + formatOpts.length + tagOpts.length > 0 || showPrice;
   const href = useParamHref();
   const submit = useSubmit();
   const nav = useNavigation();
   const loading = nav.state === "loading" && nav.location?.pathname === "/";
   const activeRoot = trail[0]?.path;
-  const filterCount = query.styles.length + query.engines.length + query.formats.length + (query.price !== "all" ? 1 : 0);
+  const filterCount =
+    query.styles.length + query.engines.length + query.formats.length + query.tags.length + (query.price !== "all" ? 1 : 0);
   const hasFilters = filterCount > 0;
   const [showFilters, setShowFilters] = useState(false);
 
@@ -408,6 +418,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
               </div>
             </FilterGroup>
           )}
+          {tagOpts.length > 0 && <TagFilter options={tagOpts} selected={query.tags} />}
           {formatOpts.length > 0 && (
             <FilterGroup title="Định dạng">
               <div className="flex flex-wrap gap-2">
@@ -442,7 +453,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
           )}
           {hasFilters && (
             <Link
-              to={href({ style: null, engine: null, format: null, price: null })}
+              to={href({ style: null, engine: null, format: null, tag: null, price: null })}
               preventScrollReset
               className="flex items-center gap-1.5 self-start text-[13px] text-muted underline underline-offset-4"
             >
@@ -539,6 +550,30 @@ function FilterGroup({ title, children }: { title: string; children: React.React
       <legend className="mb-3 font-display text-lg font-medium tracking-tight">{title}</legend>
       {children}
     </fieldset>
+  );
+}
+
+const TAGS_SHOWN = 12;
+
+function TagFilter({ options, selected }: { options: { slug: string; name: string; count: number | null }[]; selected: string[] }) {
+  const [all, setAll] = useState(false);
+  const shown = all ? options : options.slice(0, Math.max(TAGS_SHOWN, selected.length));
+  return (
+    <FilterGroup title="Thẻ">
+      <div className="flex flex-wrap gap-1.5">
+        {shown.map((t) => (
+          <ToggleChip key={t.slug} name="tag" value={t.slug} checked={selected.includes(t.slug)} className="h-8 rounded-full px-3 text-[13px]">
+            {t.name}
+            {t.count !== null && <FacetCount n={t.count} />}
+          </ToggleChip>
+        ))}
+      </div>
+      {options.length > shown.length && (
+        <button type="button" onClick={() => setAll(true)} className="self-start text-[13px] text-muted underline underline-offset-4">
+          Xem thêm {options.length - shown.length} thẻ
+        </button>
+      )}
+    </FilterGroup>
   );
 }
 

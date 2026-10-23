@@ -1,10 +1,10 @@
 // Tìm kiếm mẫu: ưu tiên Typesense (hybrid từ khoá + ngữ nghĩa),
 // tự chuyển sang D1 FTS5 khi máy nhà không phản hồi.
-import { sql, type SQL } from "drizzle-orm";
-import { getDb } from "./db.server";
+import { inArray, sql, type SQL } from "drizzle-orm";
+import { getDb, schema } from "./db.server";
 import { getModelCards, type ModelCard } from "./models.server";
 import { tsQuote, tsSearch, tsSearchPost, typesenseEnabled } from "./typesense.server";
-import { stripDiacritics } from "./format";
+import { slugify, stripDiacritics } from "./format";
 
 export const PAGE_SIZE = 24;
 
@@ -14,6 +14,7 @@ export type SearchQuery = {
   styles: string[];
   engines: string[];
   formats: string[];
+  tags: string[]; // slug tag, mẫu phải có đủ mọi tag đã chọn
   price: "all" | "free" | "paid";
   sort: "relevance" | "newest" | "price_asc" | "price_desc";
   page: number;
@@ -29,6 +30,7 @@ export function parseSearchQuery(url: URL): SearchQuery {
     styles: p.getAll("style").slice(0, 10),
     engines: p.getAll("engine").slice(0, 5),
     formats: p.getAll("format").slice(0, 10),
+    tags: [...new Set(p.getAll("tag"))].slice(0, 5),
     price: price === "free" || price === "paid" ? price : "all",
     sort: sort === "newest" || sort === "price_asc" || sort === "price_desc" ? sort : "relevance",
     page: Math.max(1, Math.min(500, Number(p.get("page")) || 1)),
@@ -66,12 +68,27 @@ export type SearchResult = {
   page: number;
   pages: number;
   source: "typesense" | "d1";
+  /** Tag hay gặp trong các mẫu khớp (từ facet Typesense); null khi đang dùng D1 – đếm tag trên D1 quá tốn lượt đọc */
+  tagFacets: TagFacet[] | null;
 };
 
-export async function searchModels(q: SearchQuery): Promise<SearchResult> {
+export type TagRef = { slug: string; name: string };
+export type TagFacet = TagRef & { count: number };
+
+/** Slug trên URL -> tên tag (Typesense lưu tên). Slug không có trong bảng thì giữ nguyên để không khớp mẫu nào */
+export async function resolveTags(slugs: string[]): Promise<TagRef[]> {
+  if (!slugs.length) return [];
+  const rows = await getDb()
+    .select({ slug: schema.tags.slug, name: schema.tags.name })
+    .from(schema.tags)
+    .where(inArray(schema.tags.slug, slugs));
+  return slugs.map((slug) => rows.find((r) => r.slug === slug) ?? { slug, name: slug });
+}
+
+export async function searchModels(q: SearchQuery, tags: TagRef[]): Promise<SearchResult> {
   if (typesenseEnabled()) {
     try {
-      return await searchTypesense(q);
+      return await searchTypesense(q, tags);
     } catch (err) {
       console.warn("Typesense không phản hồi, dùng D1 FTS5:", (err as Error).message);
     }
@@ -79,19 +96,22 @@ export async function searchModels(q: SearchQuery): Promise<SearchResult> {
   return searchD1(q);
 }
 
-function tsFilters(q: SearchQuery): string[] {
+function tsFilters(q: SearchQuery, tags: TagRef[]): string[] {
   const filters: string[] = [];
   if (q.cat) filters.push(`category_ancestors:=${tsQuote(q.cat)}`);
   if (q.styles.length) filters.push(`style:=[${q.styles.map(tsQuote).join(",")}]`);
   if (q.engines.length) filters.push(`render_engine:=[${q.engines.map(tsQuote).join(",")}]`);
   if (q.formats.length) filters.push(`formats:=[${q.formats.map(tsQuote).join(",")}]`);
+  for (const t of tags) filters.push(`tags:=${tsQuote(t.name)}`); // mỗi tag một điều kiện -> phải có đủ
   if (q.price === "free") filters.push("is_free:=true");
   if (q.price === "paid") filters.push("is_free:=false");
   return filters;
 }
 
-async function searchTypesense(q: SearchQuery): Promise<SearchResult> {
-  const filters = tsFilters(q);
+const TAG_FACET_LIMIT = 30;
+
+async function searchTypesense(q: SearchQuery, tags: TagRef[]): Promise<SearchResult> {
+  const filters = tsFilters(q, tags);
 
   const sortBy =
     q.sort === "newest"
@@ -113,6 +133,8 @@ async function searchTypesense(q: SearchQuery): Promise<SearchResult> {
     page: String(q.page),
     exclude_fields: "embedding",
     include_fields: "id",
+    facet_by: "tags",
+    max_facet_values: String(TAG_FACET_LIMIT + tags.length), // tag đang chọn cũng nằm trong facet, sẽ bị bỏ ra
   };
   if (q.q) {
     params.vector_query = "embedding:([], alpha: 0.35)"; // 0.35 = nghiêng về từ khoá
@@ -123,7 +145,18 @@ async function searchTypesense(q: SearchQuery): Promise<SearchResult> {
 
   const res = await tsSearch(params);
   const items = await getModelCards(res.ids);
-  return { items, found: res.found, page: q.page, pages: Math.ceil(res.found / PAGE_SIZE), source: "typesense" };
+  const tagFacets = (res.facets.tags ?? [])
+    .map((f) => ({ slug: slugify(f.value), name: f.value, count: f.count }))
+    .filter((f) => f.slug && !q.tags.includes(f.slug))
+    .slice(0, TAG_FACET_LIMIT);
+  return {
+    items,
+    found: res.found,
+    page: q.page,
+    pages: Math.ceil(res.found / PAGE_SIZE),
+    source: "typesense",
+    tagFacets,
+  };
 }
 
 export const IMAGE_SEARCH_LIMIT = 48;
@@ -136,12 +169,12 @@ export class ImageSearchError extends Error {}
  * Tìm bằng ảnh: Typesense sinh embedding CLIP cho ảnh truy vấn, so với image_embedding của các mẫu.
  * Không có bản dự phòng D1 – máy nhà không phản hồi thì báo lỗi. Bộ lọc vẫn áp dụng, không phân trang.
  */
-export async function searchByImage(q: SearchQuery, imageB64: string): Promise<SearchResult> {
+export async function searchByImage(q: SearchQuery, tags: TagRef[], imageB64: string): Promise<SearchResult> {
   if (!imageB64 || imageB64.length > MAX_IMAGE_B64 || !/^[A-Za-z0-9+/]+={0,2}$/.test(imageB64)) {
     throw new ImageSearchError("Ảnh không hợp lệ hoặc quá lớn.");
   }
   if (!typesenseEnabled()) throw new ImageSearchError("Tìm bằng ảnh tạm thời không khả dụng.");
-  const filters = tsFilters(q);
+  const filters = tsFilters(q, tags);
   const params: Record<string, string> = {
     q: "*",
     vector_query: `image_embedding:([], image:${imageB64}, k: ${IMAGE_SEARCH_LIMIT})`,
@@ -158,7 +191,7 @@ export async function searchByImage(q: SearchQuery, imageB64: string): Promise<S
     throw new ImageSearchError("Máy chủ tìm kiếm không phản hồi, thử lại sau.");
   }
   const items = await getModelCards(res.ids);
-  return { items, found: items.length, page: 1, pages: 1, source: "typesense" };
+  return { items, found: items.length, page: 1, pages: 1, source: "typesense", tagFacets: null };
 }
 
 function ftsTokens(input: string): string[] {
@@ -198,6 +231,10 @@ async function searchD1With(q: SearchQuery, match: string | null): Promise<Searc
         sql`, `,
       )}))`,
     );
+  for (const slug of q.tags)
+    where.push(
+      sql`EXISTS (SELECT 1 FROM model_tags mt JOIN tags t ON t.id = mt.tag_id WHERE mt.model_id = m.id AND t.slug = ${slug})`,
+    );
   if (q.price === "free") where.push(sql`m.price_vnd = 0`);
   if (q.price === "paid") where.push(sql`m.price_vnd > 0`);
 
@@ -227,5 +264,5 @@ async function searchD1With(q: SearchQuery, match: string | null): Promise<Searc
   ]);
   const found = countRows[0]?.n ?? 0;
   const items = await getModelCards(rows.map((r) => r.id));
-  return { items, found, page: q.page, pages: Math.ceil(found / PAGE_SIZE), source: "d1" };
+  return { items, found, page: q.page, pages: Math.ceil(found / PAGE_SIZE), source: "d1", tagFacets: null };
 }
