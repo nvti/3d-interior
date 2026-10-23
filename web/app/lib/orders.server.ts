@@ -4,6 +4,7 @@ import { getDb, schema } from "./db.server";
 import { createDownloadRequest, linkFor } from "./downloads.server";
 import { downloadListHtml, emailLayout, sendEmail } from "./email.server";
 import type { SessionUser } from "./auth.server";
+import type { PaymentSettings } from "./settings.server";
 
 const { orders, orderItems, entitlements, models } = schema;
 
@@ -91,10 +92,10 @@ export async function markOrderPaid(orderId: string, p: { provider: string; prov
   return true;
 }
 
-export function vietQrUrl(amount: number, code: string) {
-  const u = new URL(`https://img.vietqr.io/image/${env.BANK_BIN}-${env.BANK_ACCOUNT_NO}-compact2.png`);
+export function vietQrUrl(bank: Pick<PaymentSettings, "bankBin" | "bankAccountNo" | "bankAccountName">, amount: number, code: string) {
+  const u = new URL(`https://img.vietqr.io/image/${bank.bankBin}-${bank.bankAccountNo}-compact2.png`);
   u.searchParams.set("amount", String(amount));
   u.searchParams.set("addInfo", code);
-  u.searchParams.set("accountName", env.BANK_ACCOUNT_NAME);
+  u.searchParams.set("accountName", bank.bankAccountName);
   return u.toString();
 }

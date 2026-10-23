@@ -27,6 +27,7 @@ export default [
       route("posts", "routes/admin/posts.tsx"),
       route("posts/:id", "routes/admin/post-edit.tsx"),
       route("orders", "routes/admin/orders.tsx"),
+      route("settings", "routes/admin/settings.tsx"),
     ]),
   ]),
 ] satisfies RouteConfig;

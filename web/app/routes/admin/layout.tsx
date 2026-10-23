@@ -4,7 +4,7 @@ import { sql } from "drizzle-orm";
 import type { Route } from "./+types/layout";
 import { requireAdmin } from "~/lib/auth.server";
 import { getDb } from "~/lib/db.server";
-import { IconArrowLeft, IconCube, IconDashboard, IconDoc, IconFolder, IconReceipt, IconUpload } from "~/components/icons";
+import { IconArrowLeft, IconCube, IconDashboard, IconDoc, IconFolder, IconReceipt, IconSettings, IconUpload } from "~/components/icons";
 
 export const meta: Route.MetaFunction = () => [{ title: "Quản trị" }, { name: "robots", content: "noindex" }];
 
@@ -27,6 +27,7 @@ export default function AdminLayout({ loaderData }: Route.ComponentProps) {
     { to: "/admin/categories", label: "Cây thư mục", icon: IconFolder },
     { to: "/admin/posts", label: "Bài viết & trang", icon: IconDoc },
     { to: "/admin/orders", label: "Đơn hàng", icon: IconReceipt, badge: todo.pending, hint: "đơn chờ thanh toán" },
+    { to: "/admin/settings", label: "Cài đặt", icon: IconSettings },
   ];
   return (
     <div className="flex min-h-screen flex-col bg-[#F2F1EC] md:flex-row">

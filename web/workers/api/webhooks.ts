@@ -1,5 +1,5 @@
 // Webhook SePay (VietQR chuyển khoản ngân hàng).
-// SePay gọi POST khi tài khoản có giao dịch; header: "Authorization: Apikey <SEPAY_API_KEY>".
+// SePay gọi POST khi tài khoản có giao dịch; header: "Authorization: Apikey <API key>" (đặt ở /admin/settings, mặc định lấy SEPAY_API_KEY).
 // Kiểm tra lại định dạng payload với tài liệu SePay hiện hành trước khi chạy thật.
 import { Hono } from "hono";
 import { and, eq } from "drizzle-orm";
@@ -7,6 +7,7 @@ import { env } from "cloudflare:workers";
 import { getDb, schema } from "~/lib/db.server";
 import { markOrderPaid, orderCodePattern } from "~/lib/orders.server";
 import { safeEqual } from "~/lib/crypto.server";
+import { getPaymentSettings } from "~/lib/settings.server";
 
 export const webhooks = new Hono();
 
@@ -21,7 +22,8 @@ type SepayPayload = {
 
 webhooks.post("/sepay", async (c) => {
   const auth = c.req.header("Authorization") ?? "";
-  if (!env.SEPAY_API_KEY || !safeEqual(auth, `Apikey ${env.SEPAY_API_KEY}`)) {
+  const { sepayApiKey } = await getPaymentSettings();
+  if (!sepayApiKey || !safeEqual(auth, `Apikey ${sepayApiKey}`)) {
     return c.json({ success: false, error: "unauthorized" }, 401);
   }
   const p = (await c.req.json()) as SepayPayload;

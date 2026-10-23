@@ -1,11 +1,11 @@
 import { Link, useRevalidator } from "react-router";
 import { and, eq } from "drizzle-orm";
 import { useEffect } from "react";
-import { env } from "cloudflare:workers";
 import type { Route } from "./+types/order";
 import { requireUser } from "~/lib/auth.server";
 import { getDb, schema } from "~/lib/db.server";
 import { vietQrUrl } from "~/lib/orders.server";
+import { getPaymentSettings } from "~/lib/settings.server";
 import { cart } from "~/lib/cart";
 import { formatPrice } from "~/lib/format";
 import { PageTitle } from "~/components/site";
@@ -27,11 +27,12 @@ export async function loader({ request, params }: Route.LoaderArgs) {
     .from(schema.orderItems)
     .innerJoin(schema.models, eq(schema.models.id, schema.orderItems.modelId))
     .where(eq(schema.orderItems.orderId, order.id));
+  const pay = await getPaymentSettings();
   return {
     order: { id: order.id, code: order.code, status: order.status, total: order.totalVnd },
     items,
-    qr: order.status === "pending" ? vietQrUrl(order.totalVnd, order.code) : null,
-    bank: { accountNo: env.BANK_ACCOUNT_NO, accountName: env.BANK_ACCOUNT_NAME },
+    qr: order.status === "pending" ? vietQrUrl(pay, order.totalVnd, order.code) : null,
+    bank: { accountNo: pay.bankAccountNo, accountName: pay.bankAccountName },
   };
 }
 

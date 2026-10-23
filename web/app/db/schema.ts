@@ -428,3 +428,16 @@ export const libraryImports = sqliteTable(
   },
   (t) => [index("library_imports_status_idx").on(t.status, t.createdAt), index("library_imports_rel_idx").on(t.rel)],
 );
+
+/* ================================================================== */
+/* Cài đặt chỉnh từ trang quản trị (ghi đè vars trong wrangler.jsonc)  */
+/* ================================================================== */
+
+export const settings = sqliteTable("settings", {
+  key: text("key").primaryKey(),
+  value: text("value", { mode: "json" }).notNull(),
+  updatedAt: ts("updated_at")
+    .notNull()
+    .default(sql`(unixepoch())`)
+    .$onUpdate(() => new Date()),
+});
