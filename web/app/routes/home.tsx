@@ -3,13 +3,20 @@ import { Form, Link, useFetcher, useNavigation, useSearchParams, useSubmit } fro
 import { and, desc, eq } from "drizzle-orm";
 import type { Route } from "./+types/home";
 import { categoryCounts, getCategoryTree, type CategoryNode } from "~/lib/categories.server";
-import { ImageSearchError, parseSearchQuery, searchByImage, searchModels } from "~/lib/search.server";
+import {
+  getFacets,
+  ImageSearchError,
+  parseSearchQuery,
+  searchByImage,
+  searchModels,
+  type FacetOption,
+} from "~/lib/search.server";
 import { getDb, schema } from "~/lib/db.server";
 import { mediaVariantUrl } from "~/lib/r2.server";
-import { FORMATS, RENDER_ENGINES, STYLES } from "~/lib/format";
+import { RENDER_ENGINES } from "~/lib/format";
 import { imageToSearchJpeg } from "~/lib/image-upload.client";
 import { ModelGrid } from "~/components/site";
-import { IconArrow, IconCamera, IconChevron, IconX } from "~/components/icons";
+import { IconArrow, IconCamera, IconSettings, IconX } from "~/components/icons";
 
 export function meta({ loaderData: data }: Route.MetaArgs) {
   const t = data?.activeCat ? `${data.activeCat.name} – Thư viện mẫu 3D` : "Thư viện mẫu nội thất 3D";
@@ -19,7 +26,12 @@ export function meta({ loaderData: data }: Route.MetaArgs) {
 export async function loader({ request }: Route.LoaderArgs) {
   const url = new URL(request.url);
   const q = parseSearchQuery(url);
-  const [result, tree, counts] = await Promise.all([searchModels(q), getCategoryTree("model"), categoryCounts()]);
+  const [result, tree, counts, facets] = await Promise.all([
+    searchModels(q),
+    getCategoryTree("model"),
+    categoryCounts(),
+    getFacets(q.cat),
+  ]);
 
   const findByPath = (nodes: CategoryNode[], path: string): CategoryNode | null => {
     for (const n of nodes) {
@@ -77,6 +89,7 @@ export async function loader({ request }: Route.LoaderArgs) {
       : null,
     isLanding,
     feature,
+    facets,
   };
 }
 
@@ -108,13 +121,25 @@ function useParamHref() {
 }
 
 export default function Home({ loaderData }: Route.ComponentProps) {
-  const { query, roots, activeCat, trail, subTabs, isLanding, feature } = loaderData;
+  const { query, roots, activeCat, trail, subTabs, isLanding, feature, facets } = loaderData;
+  // giá trị đang chọn vẫn hiện (số 0) dù danh mục mới không còn mẫu nào khớp, để bỏ chọn được
+  const withSelected = (opts: FacetOption[], selected: string[]) => [
+    ...opts,
+    ...selected.filter((v) => !opts.some((o) => o.value === v)).map((value) => ({ value, count: 0 })),
+  ];
+  const styleOpts = withSelected(facets.styles, query.styles);
+  const engineOpts = withSelected(facets.engines, query.engines);
+  const formatOpts = withSelected(facets.formats, query.formats);
+  const showPrice = (facets.free > 0 && facets.paid > 0) || query.price !== "all";
+  const hasFacets = styleOpts.length + engineOpts.length + formatOpts.length > 0 || showPrice;
   const href = useParamHref();
   const submit = useSubmit();
   const nav = useNavigation();
   const loading = nav.state === "loading" && nav.location?.pathname === "/";
   const activeRoot = trail[0]?.path;
-  const hasFilters = query.styles.length + query.engines.length + query.formats.length > 0 || query.price !== "all";
+  const filterCount = query.styles.length + query.engines.length + query.formats.length + (query.price !== "all" ? 1 : 0);
+  const hasFilters = filterCount > 0;
+  const [showFilters, setShowFilters] = useState(false);
 
   // Tìm bằng ảnh: giữ ảnh truy vấn trong state, tìm lại mỗi khi bộ lọc trên URL đổi
   const [params] = useSearchParams();
@@ -301,57 +326,132 @@ export default function Home({ loaderData }: Route.ComponentProps) {
           )}
         </div>
 
-        {/* Bộ lọc */}
-        <Form
-          method="get"
-          action="/"
-          onChange={(e) => submit(e.currentTarget, { preventScrollReset: true })}
-          className="flex flex-wrap items-center gap-2.5 border-y border-line py-3"
-        >
-          {query.q && <input type="hidden" name="q" value={query.q} />}
-          {query.cat && <input type="hidden" name="cat" value={query.cat} />}
-          <FilterMenu label="Phong cách" name="style" options={STYLES.map((s) => [s, s])} selected={query.styles} />
-          <FilterMenu
-            label="Render"
-            name="engine"
-            options={Object.entries(RENDER_ENGINES).filter(([k]) => k !== "other")}
-            selected={query.engines}
-          />
-          <FilterMenu label="Định dạng" name="format" options={FORMATS.map((f) => [f, f])} selected={query.formats} mono />
-          <details className="relative">
-            <summary className={`pill list-none ${query.price !== "all" ? "pill-on" : ""}`}>
-              Giá{query.price === "free" ? " · Miễn phí" : query.price === "paid" ? " · Có phí" : ""} <IconChevron />
-            </summary>
-            <div className="absolute left-0 z-20 mt-2 flex w-48 flex-col gap-1 rounded-xl border border-line bg-white p-3 shadow-sm">
-              {[
-                ["all", "Tất cả"],
-                ["free", "Miễn phí"],
-                ["paid", "Có phí"],
-              ].map(([v, l]) => (
-                <label key={v} className="flex min-h-9 items-center gap-2.5 text-sm">
-                  <input type="radio" name="price" value={v} defaultChecked={query.price === v} className="size-4 accent-ink" />
-                  {l}
-                </label>
-              ))}
-            </div>
-          </details>
-          {hasFilters && (
-            <Link to={href({ style: null, engine: null, format: null, price: null })} className="flex h-10 items-center gap-1.5 px-1.5 text-[13px] text-muted underline underline-offset-4">
-              <IconX size={12} /> Xoá lọc
-            </Link>
+        <div className="flex items-center gap-2.5 border-y border-line py-3">
+          {hasFacets && (
+            <button
+              type="button"
+              onClick={() => setShowFilters((v) => !v)}
+              aria-expanded={showFilters}
+              aria-controls="filters"
+              className={`pill lg:hidden ${hasFilters ? "pill-on" : ""}`}
+            >
+              <IconSettings size={16} /> Bộ lọc{filterCount > 0 && ` · ${filterCount}`}
+            </button>
           )}
           <label className="ml-auto flex items-center gap-2 font-mono text-xs text-muted">
             Sắp xếp
-            <select name="sort" defaultValue={query.sort} className="h-10 cursor-pointer bg-transparent font-sans text-[13px] text-ink">
+            <select
+              name="sort"
+              form="filters"
+              defaultValue={query.sort}
+              key={query.sort}
+              onChange={(e) => e.currentTarget.form && submit(e.currentTarget.form, { preventScrollReset: true })}
+              className="h-10 cursor-pointer bg-transparent font-sans text-[13px] text-ink"
+            >
               <option value="relevance">Liên quan nhất</option>
               <option value="newest">Mới nhất</option>
               <option value="price_asc">Giá tăng dần</option>
               <option value="price_desc">Giá giảm dần</option>
             </select>
           </label>
+        </div>
+
+        <div className="flex flex-col gap-8 lg:flex-row lg:items-start lg:gap-12">
+        {/* Bộ lọc lấy theo dữ liệu mẫu đang có: cột trái trên desktop, bấm nút "Bộ lọc" để mở trên mobile */}
+        <Form
+          id="filters"
+          method="get"
+          action="/"
+          key={search}
+          onChange={(e) => submit(e.currentTarget, { preventScrollReset: true })}
+          className={
+            hasFacets
+              ? `${showFilters ? "flex" : "hidden"} flex-col gap-9 lg:sticky lg:top-6 lg:flex lg:w-52 lg:flex-none`
+              : "hidden" // vẫn giữ form để ô Sắp xếp gửi kèm q/cat
+          }
+        >
+          {query.q && <input type="hidden" name="q" value={query.q} />}
+          {query.cat && <input type="hidden" name="cat" value={query.cat} />}
+          {styleOpts.length > 0 && (
+            <FilterGroup title="Phong cách">
+              <div className="flex flex-col gap-1">
+                {styleOpts.map((o) => (
+                  <label key={o.value} className="flex min-h-9 cursor-pointer items-center gap-3 text-[15px]">
+                    <input
+                      type="checkbox"
+                      name="style"
+                      value={o.value}
+                      defaultChecked={query.styles.includes(o.value)}
+                      className="size-[18px] flex-none accent-ink"
+                    />
+                    <span className="flex-1">{o.value}</span>
+                    <FacetCount n={o.count} />
+                  </label>
+                ))}
+              </div>
+            </FilterGroup>
+          )}
+          {engineOpts.length > 0 && (
+            <FilterGroup title="Render">
+              <div className="flex flex-wrap gap-2 lg:flex-col lg:items-start">
+                {engineOpts.map((o) => (
+                  <ToggleChip
+                    key={o.value}
+                    name="engine"
+                    value={o.value}
+                    checked={query.engines.includes(o.value)}
+                    className="h-10 rounded-full px-4 text-[15px] font-medium"
+                  >
+                    <EngineLogo engine={o.value} /> {RENDER_ENGINES[o.value] ?? o.value} <FacetCount n={o.count} />
+                  </ToggleChip>
+                ))}
+              </div>
+            </FilterGroup>
+          )}
+          {formatOpts.length > 0 && (
+            <FilterGroup title="Định dạng">
+              <div className="flex flex-wrap gap-2">
+                {formatOpts.map((o) => (
+                  <ToggleChip
+                    key={o.value}
+                    name="format"
+                    value={o.value}
+                    checked={query.formats.includes(o.value)}
+                    className="h-9 rounded-md px-3 font-mono text-[13px]"
+                  >
+                    {o.value} <FacetCount n={o.count} />
+                  </ToggleChip>
+                ))}
+              </div>
+            </FilterGroup>
+          )}
+          {showPrice && (
+            <FilterGroup title="Giá">
+              <div className="flex flex-wrap gap-2">
+                {[
+                  ["all", "Tất cả"],
+                  ["free", "Miễn phí"],
+                  ["paid", "Có phí"],
+                ].map(([v, l]) => (
+                  <ToggleChip key={v} type="radio" name="price" value={v} checked={query.price === v} className="h-9 rounded-md px-3 text-[13px]">
+                    {l}
+                  </ToggleChip>
+                ))}
+              </div>
+            </FilterGroup>
+          )}
+          {hasFilters && (
+            <Link
+              to={href({ style: null, engine: null, format: null, price: null })}
+              preventScrollReset
+              className="flex items-center gap-1.5 self-start text-[13px] text-muted underline underline-offset-4"
+            >
+              <IconX size={12} /> Xoá lọc
+            </Link>
+          )}
         </Form>
 
-        <div className={`pt-3 transition-opacity ${loading || imageLoading ? "opacity-50" : ""}`}>
+        <div className={`min-w-0 flex-1 transition-opacity ${loading || imageLoading ? "opacity-50" : ""}`}>
           {shownError ? (
             <div role="alert" className="flex flex-col items-start gap-4 py-16">
               <p className="font-serif text-3xl italic">Không tìm được bằng ảnh.</p>
@@ -374,6 +474,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
             </div>
           )}
         </div>
+        </div>
       </main>
 
       {feature && !imageMode && (
@@ -395,8 +496,12 @@ export default function Home({ loaderData }: Route.ComponentProps) {
       )}
 
       {result.items.length > half && (
-        <div className="mx-auto max-w-[1440px] px-5 pt-6 md:px-12">
-          <ModelGrid items={result.items.slice(half)} offset={half} />
+        <div className="mx-auto flex max-w-[1440px] gap-12 px-5 pt-6 md:px-12">
+          {/* chừa chỗ cột lọc để lưới thẳng hàng với nửa trên */}
+          {hasFacets && <div aria-hidden className="hidden w-52 flex-none lg:block" />}
+          <div className="min-w-0 flex-1">
+            <ModelGrid items={result.items.slice(half)} offset={half} />
+          </div>
         </div>
       )}
 
@@ -428,35 +533,59 @@ function PageLink({ page, label }: { page: number; label: string }) {
   );
 }
 
-function FilterMenu({
-  label,
-  name,
-  options,
-  selected,
-  mono,
-}: {
-  label: string;
-  name: string;
-  options: [string, string][];
-  selected: string[];
-  mono?: boolean;
-}) {
-  const on = selected.length > 0;
-  const summary = on ? options.filter(([v]) => selected.includes(v)).map(([, l]) => l).join(", ") : "";
+function FilterGroup({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <details className="relative">
-      <summary className={`pill list-none ${on ? "pill-on" : ""}`}>
-        {label}
-        {on && <span className="max-w-40 truncate"> · {summary}</span>} <IconChevron />
-      </summary>
-      <div className="absolute left-0 z-20 mt-2 flex w-56 flex-col gap-1 rounded-xl border border-line bg-white p-3 shadow-sm">
-        {options.map(([v, l]) => (
-          <label key={v} className={`flex min-h-9 items-center gap-2.5 text-sm ${mono ? "font-mono text-[13px]" : ""}`}>
-            <input type="checkbox" name={name} value={v} defaultChecked={selected.includes(v)} className="size-4 accent-ink" />
-            {l}
-          </label>
-        ))}
-      </div>
-    </details>
+    <fieldset className="flex flex-col gap-3">
+      <legend className="mb-3 font-display text-lg font-medium tracking-tight">{title}</legend>
+      {children}
+    </fieldset>
   );
+}
+
+function FacetCount({ n }: { n: number }) {
+  return <span className="font-mono text-xs tabular-nums opacity-60">{n}</span>;
+}
+
+/** Nút bật/tắt dạng chip, bên trong là checkbox/radio thật để form gửi đi */
+function ToggleChip({
+  type = "checkbox",
+  name,
+  value,
+  checked,
+  className,
+  children,
+}: {
+  type?: "checkbox" | "radio";
+  name: string;
+  value: string;
+  checked: boolean;
+  className: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <label
+      className={`inline-flex cursor-pointer items-center gap-2 bg-paper select-none hover:bg-tone-1/60 has-checked:bg-ink has-checked:text-white has-focus-visible:outline-2 has-focus-visible:outline-offset-2 has-focus-visible:outline-ink ${className}`}
+    >
+      <input type={type} name={name} value={value} defaultChecked={checked} className="sr-only" />
+      {children}
+    </label>
+  );
+}
+
+/** Logo rút gọn của engine render */
+function EngineLogo({ engine }: { engine: string }) {
+  if (engine === "vray")
+    return (
+      <svg width="20" height="20" viewBox="0 0 20 20" aria-hidden>
+        <circle cx="10" cy="10" r="9" fill="#2B57C5" />
+        <path d="M5.5 6h2.6l1.9 5.4L12 6h2.5l-3.3 8.2H8.8z" fill="#fff" />
+      </svg>
+    );
+  if (engine === "corona")
+    return (
+      <svg width="20" height="20" viewBox="0 0 20 20" aria-hidden>
+        <circle cx="10" cy="10" r="6.2" fill="none" stroke="#F0561D" strokeWidth="3.2" strokeDasharray="33 6" transform="rotate(20 10 10)" />
+      </svg>
+    );
+  return null;
 }

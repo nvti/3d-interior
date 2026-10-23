@@ -35,6 +35,31 @@ export function parseSearchQuery(url: URL): SearchQuery {
   };
 }
 
+export type FacetOption = { value: string; count: number };
+export type Facets = { styles: FacetOption[]; engines: FacetOption[]; formats: FacetOption[]; free: number; paid: number };
+
+/** Các giá trị lọc đang có trong mẫu đã đăng (trong danh mục đang xem), kèm số mẫu – nhiều nhất trước */
+export async function getFacets(cat: string | null): Promise<Facets> {
+  const db = getDb();
+  const scope = cat
+    ? sql`m.status = 'published' AND m.category_id IN (SELECT id FROM categories WHERE path LIKE ${cat + "%"})`
+    : sql`m.status = 'published'`;
+  const rows = await db.all<{ k: string; v: string | number | null; n: number }>(sql`
+    SELECT 'style' AS k, m.style AS v, COUNT(*) AS n FROM models m WHERE ${scope} AND m.style IS NOT NULL AND m.style != '' GROUP BY m.style
+    UNION ALL SELECT 'engine', m.render_engine, COUNT(*) FROM models m WHERE ${scope} AND m.render_engine IS NOT NULL GROUP BY m.render_engine
+    UNION ALL SELECT 'format', j.value, COUNT(*) FROM models m, json_each(m.formats) j WHERE ${scope} GROUP BY j.value
+    UNION ALL SELECT 'free', m.price_vnd = 0, COUNT(*) FROM models m WHERE ${scope} GROUP BY m.price_vnd = 0
+    ORDER BY 3 DESC`);
+  const pick = (k: string) => rows.filter((r) => r.k === k).map((r) => ({ value: String(r.v), count: r.n }));
+  return {
+    styles: pick("style"),
+    engines: pick("engine"),
+    formats: pick("format"),
+    free: rows.find((r) => r.k === "free" && r.v === 1)?.n ?? 0,
+    paid: rows.find((r) => r.k === "free" && r.v === 0)?.n ?? 0,
+  };
+}
+
 export type SearchResult = {
   items: ModelCard[];
   found: number;
